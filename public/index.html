@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>🎮 Game Time!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/menu.css" />
+</head>
+<body>
+
+  <!-- ── Update Loading Overlay ──────────────────────────────── -->
+  <div id="update-overlay" class="hidden">
+    <div class="update-box">
+      <div class="update-rocket">🚀</div>
+      <h2>Getting new stuff ready!</h2>
+      <p id="update-message">Just a moment…</p>
+      <div class="dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">🌟 Game Time!</div>
+      <div class="stars" id="star-display">⭐⭐⭐</div>
+    </div>
+  </header>
+
+  <!-- ── Main Menu ──────────────────────────────────────────── -->
+  <main>
+    <div class="welcome">
+      <h1>What do you want to play?</h1>
+    </div>
+
+    <div id="game-grid" class="game-grid">
+      <!-- Games injected by JS -->
+      <div class="loading-games">Loading games… 🎲</div>
+    </div>
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────────── -->
+  <footer>
+    <span>Made with ❤️ just for you</span>
+  </footer>
+
+  <script src="/js/menu.js"></script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>🎨 Color Tap!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&family=Nunito:wght@700;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; font-family: 'Nunito', sans-serif;
+      background: #1a1a2e; color: #fff;
+      display: flex; flex-direction: column;
+      touch-action: manipulation; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    header {
+      padding: 1rem 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+      background: rgba(255,255,255,0.05);
+    }
+    .back-btn {
+      font-size: 1.8rem; text-decoration: none; line-height: 1;
+      background: rgba(255,255,255,0.12); border-radius: 50%;
+      width: 2.8rem; height: 2.8rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    header h1 { font-family: 'Baloo 2', cursive; font-size: 1.8rem; }
+    #score-bar { margin-left: auto; font-size: 1.3rem; font-weight: 900; }
+
+    main {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2rem;
+      padding: 1.5rem;
+    }
+    #prompt {
+      font-family: 'Baloo 2', cursive;
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      text-align: center;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      transition: transform 0.15s ease;
+    }
+    #prompt.pop { transform: scale(1.15); }
+    #color-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      width: 100%; max-width: 500px;
+    }
+    .color-btn {
+      border: none; border-radius: 2rem;
+      height: clamp(100px, 22vw, 150px);
+      cursor: pointer;
+      font-family: 'Baloo 2', cursive;
+      font-size: clamp(1.2rem, 4vw, 1.8rem);
+      font-weight: 800; color: #fff;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 0 rgba(0,0,0,0.25);
+      transition: transform 0.08s, box-shadow 0.08s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .color-btn:active { transform: translateY(4px); box-shadow: 0 4px 0 rgba(0,0,0,0.25); }
+    .color-btn.correct { animation: celebrate 0.4s ease; }
+    .color-btn.wrong   { animation: shake 0.35s ease; }
+
+    @keyframes celebrate {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%     { transform: translateX(-10px); }
+      75%     { transform: translateX(10px); }
+    }
+
+    #result {
+      font-size: clamp(2rem, 6vw, 3rem);
+      min-height: 4rem;
+      text-align: center;
+      font-family: 'Baloo 2', cursive;
+      transition: opacity 0.3s;
+    }
+    #play-again {
+      display: none;
+      padding: 1rem 3rem;
+      border-radius: 999px;
+      border: none;
+      background: #ffd93d;
+      color: #333;
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.5rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #c8a800;
+    }
+    #play-again:active { transform: translateY(3px); box-shadow: 0 3px 0 #c8a800; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back-btn" href="/">🏠</a>
+    <h1>🎨 Color Tap!</h1>
+    <div id="score-bar">⭐ 0</div>
+  </header>
+  <main>
+    <div id="prompt">Loading…</div>
+    <div id="color-buttons"></div>
+    <div id="result"></div>
+    <button id="play-again" onclick="newRound()">Play Again! 🎉</button>
+  </main>
+  <script>
+    const COLORS = [
+      { name: "Red",    hex: "#ef4444", dark: "#b91c1c" },
+      { name: "Blue",   hex: "#3b82f6", dark: "#1d4ed8" },
+      { name: "Green",  hex: "#22c55e", dark: "#15803d" },
+      { name: "Yellow", hex: "#eab308", dark: "#a16207" },
+      { name: "Purple", hex: "#a855f7", dark: "#7e22ce" },
+      { name: "Orange", hex: "#f97316", dark: "#c2410c" },
+      { name: "Pink",   hex: "#ec4899", dark: "#be185d" },
+      { name: "Teal",   hex: "#14b8a6", dark: "#0f766e" },
+    ];
+
+    let score = 0;
+    let correctColor = null;
+
+    function shuffle(arr) {
+      return [...arr].sort(() => Math.random() - 0.5);
+    }
+
+    function newRound() {
+      document.getElementById("result").textContent = "";
+      document.getElementById("play-again").style.display = "none";
+
+      const four   = shuffle(COLORS).slice(0, 4);
+      correctColor = four[Math.floor(Math.random() * 4)];
+
+      const prompt = document.getElementById("prompt");
+      prompt.textContent = `Tap the ${correctColor.name} one! 👇`;
+      prompt.classList.remove("pop");
+      void prompt.offsetWidth;
+      prompt.classList.add("pop");
+
+      const grid = document.getElementById("color-buttons");
+      grid.innerHTML = "";
+      four.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "color-btn";
+        btn.style.background = c.hex;
+        btn.style.boxShadow  = `0 8px 0 ${c.dark}`;
+        btn.textContent = c.name;
+        btn.addEventListener("click", () => handleGuess(c, btn));
+        grid.appendChild(btn);
+      });
+    }
+
+    function handleGuess(color, btn) {
+      const result = document.getElementById("result");
+      if (color.name === correctColor.name) {
+        score++;
+        document.getElementById("score-bar").textContent = `⭐ ${score}`;
+        btn.classList.add("correct");
+        result.textContent = ["Great job! 🎉", "Awesome! ⭐", "Yes! 🌟", "Amazing! 🥳"][Math.floor(Math.random()*4)];
+        localStorage.setItem("kidgames_stars", score);
+        setTimeout(newRound, 1000);
+      } else {
+        btn.classList.add("wrong");
+        result.textContent = "Try again! 💪";
+        setTimeout(() => {
+          btn.classList.remove("wrong");
+          result.textContent = "";
+        }, 600);
+      }
+    }
+
+    newRound();
+  </script>
+</body>
+</html>
