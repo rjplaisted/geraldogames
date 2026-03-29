@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>¡Bomberos! 🚒 Firetruck Game</title>
     <style>
         * {
@@ -1645,6 +1645,67 @@
             color: #999;
         }
     </style>
+    <script>
+    /* ── Auto-scaler ─────────────────────────────────────────────────────────
+       The game was designed at 1440×900 (MacBook Pro).  This script:
+         1. Overrides window.innerWidth/Height so all game JS sees 1440×900
+         2. Scales the <body> with CSS transform to fit any viewport
+         3. Patches getBoundingClientRect() so hit-test coordinates stay in
+            the 1440×900 design space even after the CSS scale is applied
+    ──────────────────────────────────────────────────────────────────────── */
+    (function () {
+        var DW = 1440, DH = 900;   // design resolution
+        var _scale = 1;
+
+        // 1. Override window dimensions BEFORE game JS reads them
+        Object.defineProperty(window, 'innerWidth',  { get: function () { return DW; }, configurable: true });
+        Object.defineProperty(window, 'innerHeight', { get: function () { return DH; }, configurable: true });
+
+        // 2. Patch getBoundingClientRect so returned coords are in design space
+        var _origGBCR = Element.prototype.getBoundingClientRect;
+        Element.prototype.getBoundingClientRect = function () {
+            var r = _origGBCR.call(this);
+            if (_scale === 1) return r;
+            var s = _scale;
+            return {
+                left: r.left / s,  right: r.right / s,
+                top:  r.top  / s,  bottom: r.bottom / s,
+                width: r.width / s, height: r.height / s,
+                x: r.x / s,  y: r.y / s,
+                toJSON: function () { return this; }
+            };
+        };
+
+        // 3. Scale body to fill viewport while preserving aspect ratio
+        function applyScale() {
+            var rw = document.documentElement.clientWidth;
+            var rh = document.documentElement.clientHeight;
+            _scale = Math.min(rw / DW, rh / DH);
+            var ox = Math.max(0, (rw - DW * _scale) / 2);
+            var oy = Math.max(0, (rh - DH * _scale) / 2);
+            var b = document.body;
+            b.style.width          = DW + 'px';
+            b.style.height         = DH + 'px';
+            b.style.overflow       = 'hidden';
+            b.style.position       = 'fixed';
+            b.style.transformOrigin = '0 0';
+            b.style.transform      = 'scale(' + _scale + ')';
+            b.style.left           = ox + 'px';
+            b.style.top            = oy + 'px';
+            var html = document.documentElement;
+            html.style.overflow    = 'hidden';
+            html.style.background  = '#1a1a2e';   // letterbox colour
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', applyScale);
+        } else {
+            applyScale();
+        }
+        window.addEventListener('resize', applyScale);
+        window.addEventListener('orientationchange', function () { setTimeout(applyScale, 300); });
+    })();
+    </script>
 </head>
 <body>
     <a href="/" style="position:fixed;top:12px;left:12px;z-index:9999;font-size:2.5rem;text-decoration:none;background:rgba(255,255,255,0.85);border-radius:16px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">🏠</a>
