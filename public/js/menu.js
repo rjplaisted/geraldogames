@@ -9,7 +9,7 @@ function updateStarDisplay() {
 async function loadGames() {
   const grid = document.getElementById("game-grid");
   try {
-    const res = await fetch("/api/games");
+    const res = await fetch("/api/games.php");
     const games = await res.json();
 
     if (!games.length) {
@@ -43,7 +43,7 @@ let pollInterval = null;
 
 async function checkStatus() {
   try {
-    const res = await fetch("/api/status");
+    const res = await fetch("/api/status.php");
     const status = await res.json();
 
     if (status.updating) {
