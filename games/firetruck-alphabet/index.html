@@ -1,0 +1,4422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Bomberos! 🚒 Firetruck Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(to bottom, #87CEEB 0%, #4A90E2 40%, #808080 40%, #696969 100%);
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+            background: repeating-linear-gradient(
+                90deg,
+                #696969 0px,
+                #696969 100px,
+                #555 100px,
+                #555 110px
+            );
+            z-index: 0;
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 100px;
+            opacity: 0.8;
+            z-index: 0;
+        }
+
+        .building {
+            position: absolute;
+            bottom: 100px;
+            width: 250px;
+            height: 400px;
+            background: #8B7355;
+            border: 5px solid #654321;
+            z-index: 1;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .building:hover {
+            transform: scale(1.05);
+        }
+
+        .building::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 135px solid transparent;
+            border-right: 135px solid transparent;
+            border-bottom: 100px solid #8B4513;
+        }
+
+        .window {
+            position: absolute;
+            width: 60px;
+            height: 70px;
+            background: #FFD700;
+            border: 3px solid #333;
+        }
+
+        .person {
+            position: absolute;
+            font-size: 60px;
+            z-index: 5;
+            animation: wave 0.5s infinite;
+            cursor: pointer;
+            transition: all 0.5s ease-out;
+        }
+
+        .person:hover {
+            transform: scale(1.2);
+        }
+
+        .bad-person {
+            animation: flicker 0.5s infinite !important;
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: rotate(-10deg); }
+            50% { transform: rotate(10deg); }
+        }
+
+        .bad-guy {
+            position: absolute;
+            font-size: 50px;
+            z-index: 5;
+        }
+
+        .house-item {
+            position: absolute;
+            font-size: 40px;
+            z-index: 5;
+        }
+
+        .car {
+            position: absolute;
+            font-size: 80px;
+            z-index: 6;
+            transition: left 3s linear;
+        }
+
+        .ambulance {
+            position: absolute;
+            font-size: 130px;
+            z-index: 51;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .injured-person {
+            position: absolute;
+            font-size: 60px;
+            z-index: 52;
+            animation: cry 0.5s infinite;
+        }
+
+        @keyframes cry {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+
+        .sonic {
+            position: absolute;
+            width: 140px;
+            height: 180px;
+            z-index: 53;
+            transition: all 0.3s ease-out;
+            transform: scale(1.4);
+        }
+
+        .sonic-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sonic's main head (large blue sphere) */
+        .sonic-head {
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            background: #0066FF;
+            border-radius: 50%;
+            bottom: 50px;
+            left: 25px;
+            box-shadow: inset -4px -4px 8px rgba(0,0,0,0.3), 0 2px 5px rgba(0,0,0,0.4);
+        }
+
+        /* Sonic's iconic spikes - make them BIGGER and more prominent */
+        .sonic-spike {
+            position: absolute;
+            background: #0066FF;
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sonic-spike1 {
+            width: 35px;
+            height: 55px;
+            top: -35px;
+            left: 5px;
+            border-radius: 50% 50% 0 0;
+            transform: rotate(-35deg);
+            clip-path: polygon(0% 100%, 50% 0%, 100% 100%);
+        }
+
+        .sonic-spike2 {
+            width: 40px;
+            height: 60px;
+            top: -40px;
+            left: 25px;
+            border-radius: 50% 50% 0 0;
+            transform: rotate(-10deg);
+            clip-path: polygon(0% 100%, 50% 0%, 100% 100%);
+        }
+
+        .sonic-spike3 {
+            width: 35px;
+            height: 55px;
+            top: -35px;
+            right: 5px;
+            border-radius: 50% 50% 0 0;
+            transform: rotate(25deg);
+            clip-path: polygon(0% 100%, 50% 0%, 100% 100%);
+        }
+
+        /* Back spikes */
+        .sonic-spike4 {
+            width: 30px;
+            height: 45px;
+            top: 10px;
+            right: -15px;
+            border-radius: 50% 50% 0 0;
+            transform: rotate(75deg);
+            clip-path: polygon(0% 100%, 50% 0%, 100% 100%);
+        }
+
+        .sonic-spike5 {
+            width: 28px;
+            height: 40px;
+            top: 35px;
+            right: -12px;
+            border-radius: 50% 50% 0 0;
+            transform: rotate(90deg);
+            clip-path: polygon(0% 100%, 50% 0%, 100% 100%);
+        }
+
+        /* Sonic's face - peach/tan colored muzzle area */
+        .sonic-face {
+            position: absolute;
+            width: 55px;
+            height: 45px;
+            background: #FFDDAA;
+            border-radius: 50%;
+            top: 28px;
+            left: 18px;
+            border: 2px solid #000;
+            z-index: 2;
+        }
+
+        /* Sonic's connected white eyes (mono-eye style) */
+        .sonic-eyes {
+            position: absolute;
+            width: 62px;
+            height: 32px;
+            background: white;
+            border-radius: 50%;
+            top: 15px;
+            left: 14px;
+            border: 3px solid black;
+            z-index: 3;
+        }
+
+        .sonic-pupil {
+            position: absolute;
+            width: 12px;
+            height: 16px;
+            background: #000;
+            border-radius: 50%;
+            top: 8px;
+        }
+
+        .sonic-pupil-left {
+            left: 12px;
+        }
+
+        .sonic-pupil-right {
+            right: 12px;
+        }
+
+        /* White highlights in eyes */
+        .sonic-eye-glint {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 2px;
+        }
+
+        /* Sonic's nose */
+        .sonic-nose {
+            position: absolute;
+            width: 12px;
+            height: 10px;
+            background: #000;
+            border-radius: 0 0 50% 50%;
+            top: 35px;
+            left: 39px;
+            z-index: 4;
+        }
+
+        /* Sonic's smile */
+        .sonic-mouth {
+            position: absolute;
+            width: 25px;
+            height: 12px;
+            border: 2px solid black;
+            border-top: none;
+            border-radius: 0 0 15px 15px;
+            top: 48px;
+            left: 20px;
+            background: #FFB6B6;
+        }
+
+        /* Sonic's body/torso (blue) */
+        .sonic-torso {
+            position: absolute;
+            width: 50px;
+            height: 42px;
+            background: #0066FF;
+            border-radius: 50%;
+            bottom: 35px;
+            left: 45px;
+            box-shadow: inset -3px -3px 6px rgba(0,0,0,0.3);
+        }
+
+        /* Sonic's belly (peach colored) */
+        .sonic-belly {
+            position: absolute;
+            width: 48px;
+            height: 40px;
+            background: #FFDDAA;
+            border-radius: 50%;
+            bottom: 36px;
+            left: 46px;
+            border: 2px solid #000;
+            z-index: 2;
+        }
+
+        /* Sonic's arms */
+        .sonic-arm {
+            position: absolute;
+            width: 18px;
+            height: 40px;
+            background: #0066FF;
+            border-radius: 10px;
+            bottom: 48px;
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sonic-arm-left {
+            left: 28px;
+            transform: rotate(-25deg);
+        }
+
+        .sonic-arm-right {
+            right: 28px;
+            transform: rotate(25deg);
+        }
+
+        /* Sonic's gloves (white) */
+        .sonic-glove {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: #FFFFFF;
+            border-radius: 50%;
+            border: 2px solid #000;
+            box-shadow: inset -2px -2px 3px rgba(0,0,0,0.2);
+        }
+
+        .sonic-glove-left {
+            bottom: 43px;
+            left: 20px;
+        }
+
+        .sonic-glove-right {
+            bottom: 43px;
+            right: 20px;
+        }
+
+        /* Glove cuff */
+        .sonic-glove-cuff {
+            position: absolute;
+            width: 100%;
+            height: 8px;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 4px;
+            top: 8px;
+        }
+
+        /* Sonic's legs (blue) */
+        .sonic-leg {
+            position: absolute;
+            width: 22px;
+            height: 38px;
+            background: #0066FF;
+            border-radius: 12px;
+            bottom: 18px;
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sonic-leg-left {
+            left: 40px;
+        }
+
+        .sonic-leg-right {
+            left: 78px;
+        }
+
+        /* Sonic's iconic red shoes with white stripe and yellow buckle */
+        .sonic-shoe {
+            position: absolute;
+            width: 38px;
+            height: 24px;
+            background: #E40000;
+            border-radius: 45% 45% 20% 20%;
+            bottom: 0;
+            border: 2px solid #000;
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.4), 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sonic-shoe-left {
+            left: 33px;
+        }
+
+        .sonic-shoe-right {
+            left: 72px;
+        }
+
+        /* White stripe on shoe */
+        .sonic-shoe-stripe {
+            position: absolute;
+            width: 100%;
+            height: 8px;
+            background: white;
+            top: 8px;
+            border-radius: 4px;
+            border-top: 1px solid #CCC;
+            border-bottom: 1px solid #CCC;
+        }
+
+        /* Yellow buckle on shoe */
+        .sonic-shoe-buckle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #FFD700;
+            border-radius: 2px;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid #CC9900;
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.5);
+        }
+
+        /* Shoe sole (white bottom) */
+        .sonic-shoe-sole {
+            position: absolute;
+            width: 42px;
+            height: 8px;
+            background: #FFFFFF;
+            border-radius: 50%;
+            bottom: -4px;
+            left: -2px;
+            border: 2px solid #000;
+        }
+
+        /* Sonic running animation */
+        @keyframes sonic-run {
+            0%, 100% { transform: translateY(0) rotate(0deg) scale(1.4); }
+            50% { transform: translateY(-5px) rotate(-5deg) scale(1.4); }
+        }
+
+        .sonic.running {
+            animation: sonic-run 0.2s infinite;
+        }
+
+        /* Sonic spin dash animation - COOL! */
+        @keyframes sonic-spin {
+            0% { transform: rotate(0deg) scale(1.4); }
+            100% { transform: rotate(720deg) scale(1.5); }
+        }
+
+        .sonic.spinning {
+            animation: sonic-spin 0.6s ease-in-out;
+            filter: blur(1px);
+        }
+
+        /* SUPER SONIC TRANSFORMATION - GOLDEN GLOW! */
+        @keyframes super-sonic-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 20px gold) drop-shadow(0 0 40px yellow) brightness(1.5);
+                transform: scale(1.6);
+            }
+            50% {
+                filter: drop-shadow(0 0 30px gold) drop-shadow(0 0 60px yellow) brightness(1.8);
+                transform: scale(1.7);
+            }
+        }
+
+        .sonic.super-sonic {
+            animation: super-sonic-glow 0.5s infinite;
+        }
+
+        /* Rainbow ring trail */
+        @keyframes ring-orbit {
+            0% { transform: rotate(0deg) translateX(100px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(100px) rotate(-360deg); }
+        }
+
+        .ring-orbit {
+            position: absolute;
+            font-size: 50px;
+            animation: ring-orbit 2s linear infinite;
+        }
+
+        /* Screen shake for dramatic effect */
+        @keyframes screen-shake {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-5px, 5px); }
+            20% { transform: translate(5px, -5px); }
+            30% { transform: translate(-5px, -5px); }
+            40% { transform: translate(5px, 5px); }
+            50% { transform: translate(-5px, 5px); }
+            60% { transform: translate(5px, -5px); }
+            70% { transform: translate(-5px, -5px); }
+            80% { transform: translate(5px, 5px); }
+            90% { transform: translate(-5px, 5px); }
+        }
+
+        .screen-shake {
+            animation: screen-shake 0.5s;
+        }
+
+        /* Sonic victory pose jump */
+        @keyframes sonic-victory-jump {
+            0% { transform: translateY(0) scale(1.4); }
+            40% { transform: translateY(-100px) scale(1.6) rotate(360deg); }
+            60% { transform: translateY(-100px) scale(1.6) rotate(360deg); }
+            100% { transform: translateY(0) scale(1.4) rotate(720deg); }
+        }
+
+        .sonic.victory {
+            animation: sonic-victory-jump 2s ease-in-out;
+        }
+
+        /* Lightning bolts around Sonic */
+        @keyframes lightning-strike {
+            0%, 100% { opacity: 0; }
+            10%, 30%, 50% { opacity: 1; }
+            20%, 40%, 60% { opacity: 0; }
+        }
+
+        .lightning {
+            position: absolute;
+            font-size: 80px;
+            z-index: 1000;
+            animation: lightning-strike 0.6s;
+        }
+
+        /* Sonic thumbs up pose */
+        .sonic-thumbs-up {
+            position: absolute;
+            font-size: 50px;
+            top: 30px;
+            right: -40px;
+            animation: wave 0.5s infinite;
+            z-index: 100;
+        }
+
+        /* Speed lines behind Sonic */
+        .sonic-speed-lines {
+            position: absolute;
+            left: -50px;
+            top: 40px;
+            font-size: 40px;
+            opacity: 0.6;
+            animation: speed-fade 0.5s infinite;
+        }
+
+        @keyframes speed-fade {
+            0% { opacity: 0.8; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(-30px); }
+        }
+
+        .plane {
+            position: absolute;
+            font-size: 180px;
+            z-index: 100;
+            transition: all 2s linear;
+        }
+
+        .flying-plane {
+            position: absolute;
+            font-size: 150px;
+            z-index: 15;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .flying-plane:hover {
+            transform: scale(1.1);
+        }
+
+        .parachute {
+            position: absolute;
+            font-size: 180px;
+            z-index: 99;
+            animation: float-down 4s ease-in forwards;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .parachute:hover {
+            transform: scale(1.1);
+        }
+
+        @keyframes float-down {
+            0% {
+                transform: translateY(0) rotate(-5deg);
+            }
+            100% {
+                transform: translateY(800px) rotate(5deg);
+            }
+        }
+
+        .water-bomb {
+            position: absolute;
+            font-size: 100px;
+            z-index: 98;
+            animation: drop 1.5s ease-in forwards;
+        }
+
+        @keyframes drop {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(500px) scale(2);
+                opacity: 0.5;
+            }
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 20px 35px;
+            border-radius: 20px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+            border: 4px solid #4CAF50;
+            font-size: 35px;
+            font-weight: bold;
+            color: #333;
+            z-index: 100;
+        }
+
+        #language-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 15px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        #language-toggle:hover {
+            background: #45a049;
+        }
+
+        #music-toggle {
+            position: absolute;
+            top: 90px;
+            right: 20px;
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 15px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        #music-toggle:hover {
+            background: #FF5252;
+        }
+
+        #firetruck {
+            position: absolute;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 150px;
+            z-index: 50;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        #firetruck.driving {
+            animation: none;
+            font-size: 170px;
+        }
+
+        #firefighter-boy {
+            position: absolute;
+            bottom: 130px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 60px;
+            z-index: 51;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .boy-driving {
+            font-size: 70px;
+        }
+
+        .bad-guy-standalone {
+            position: absolute;
+            font-size: 150px;
+            z-index: 15;
+            cursor: pointer;
+            animation: bounce 1s infinite;
+            filter: drop-shadow(0 8px 16px rgba(255,0,0,0.8));
+        }
+
+        .bad-guy-standalone:hover {
+            transform: scale(1.15);
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0) rotate(-5deg); }
+            50% { transform: translateY(-30px) rotate(5deg); }
+        }
+
+        /* Police scene background - bright daylight */
+        .police-scene-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #B0E3FF 50%, #FFD89E 100%);
+            z-index: 500;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .police-scene-bg.active {
+            opacity: 1;
+        }
+
+        /* Bright sun in the sky */
+        .sun {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, #FFF700 0%, #FFD700 40%, #FFA500 100%);
+            border-radius: 50%;
+            top: 80px;
+            right: 150px;
+            box-shadow: 0 0 40px #FFD700, 0 0 80px #FFA500;
+            animation: sun-glow 2s infinite;
+        }
+
+        @keyframes sun-glow {
+            0%, 100% { box-shadow: 0 0 40px #FFD700, 0 0 80px #FFA500; }
+            50% { box-shadow: 0 0 60px #FFD700, 0 0 120px #FFA500; }
+        }
+
+        /* Ground/street for police scene */
+        .police-ground {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35%;
+            background: linear-gradient(to bottom, #808080 0%, #696969 50%, #555 100%);
+            border-top: 8px solid #FFD700;
+        }
+
+        /* Road lines */
+        .road-line {
+            position: absolute;
+            width: 150px;
+            height: 8px;
+            background: #FFD700;
+            bottom: 50%;
+            border-radius: 4px;
+        }
+
+        /* Police officer walking */
+        .police-officer {
+            position: fixed;
+            width: 80px;
+            height: 140px;
+            z-index: 650;
+            transform: scale(1.5);
+        }
+
+        .police-hat {
+            position: absolute;
+            width: 70px;
+            height: 25px;
+            background: #1A237E;
+            border-radius: 15px 15px 0 0;
+            top: 0;
+            left: 5px;
+        }
+
+        .police-hat-badge {
+            position: absolute;
+            width: 20px;
+            height: 15px;
+            background: #FFD700;
+            border-radius: 50%;
+            top: 5px;
+            left: 25px;
+            border: 2px solid #000;
+        }
+
+        .police-head {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #FFDBAC;
+            border-radius: 50%;
+            top: 25px;
+            left: 15px;
+            border: 3px solid #000;
+        }
+
+        .police-body {
+            position: absolute;
+            width: 60px;
+            height: 55px;
+            background: #1E3A8A;
+            border-radius: 10px;
+            top: 75px;
+            left: 10px;
+            border: 3px solid #000;
+        }
+
+        .police-badge {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #FFD700;
+            border-radius: 50%;
+            top: 15px;
+            left: 21px;
+            border: 2px solid #000;
+        }
+
+        .police-arm {
+            position: absolute;
+            width: 18px;
+            height: 45px;
+            background: #1E3A8A;
+            border-radius: 9px;
+            top: 80px;
+            border: 2px solid #000;
+        }
+
+        .police-arm-left {
+            left: 5px;
+            transform: rotate(-10deg);
+        }
+
+        .police-arm-right {
+            right: 5px;
+            transform: rotate(10deg);
+        }
+
+        .police-hand {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #FFDBAC;
+            border-radius: 50%;
+            bottom: -10px;
+            left: -1px;
+            border: 2px solid #000;
+        }
+
+        .police-leg {
+            position: absolute;
+            width: 22px;
+            height: 35px;
+            background: #1A237E;
+            border-radius: 5px;
+            bottom: 0;
+            border: 2px solid #000;
+        }
+
+        .police-leg-left {
+            left: 15px;
+        }
+
+        .police-leg-right {
+            right: 15px;
+        }
+
+        .police-shoe {
+            position: absolute;
+            width: 28px;
+            height: 15px;
+            background: #000;
+            border-radius: 5px;
+            bottom: -8px;
+            left: -3px;
+        }
+
+        /* Bad guy with handcuffs */
+        .bad-guy-caught {
+            position: fixed;
+            width: 70px;
+            height: 130px;
+            z-index: 640;
+            transform: scale(1.5);
+        }
+
+        /* Bad guy head - regular skin tone */
+        .bad-guy-head {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #FFDBAC;
+            border-radius: 50%;
+            top: 20px;
+            left: 10px;
+            border: 3px solid #000;
+        }
+
+        /* Black villain mask over eyes */
+        .bad-guy-mask {
+            position: absolute;
+            width: 45px;
+            height: 18px;
+            background: #000;
+            border-radius: 10px;
+            top: 18px;
+            left: 2.5px;
+            z-index: 2;
+        }
+
+        /* Eye holes in the mask */
+        .bad-guy-eyes {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #FFDBAC;
+            border-radius: 50%;
+            top: 4px;
+            border: 1px solid #000;
+        }
+
+        .bad-guy-eye-left {
+            left: 8px;
+        }
+
+        .bad-guy-eye-right {
+            right: 8px;
+        }
+
+        /* Evil eyebrows */
+        .bad-guy-eyebrow {
+            position: absolute;
+            width: 12px;
+            height: 3px;
+            background: #000;
+            top: 12px;
+        }
+
+        .bad-guy-eyebrow-left {
+            left: 12px;
+            transform: rotate(-20deg);
+        }
+
+        .bad-guy-eyebrow-right {
+            right: 12px;
+            transform: rotate(20deg);
+        }
+
+        /* Smirking mouth */
+        .bad-guy-mouth {
+            position: absolute;
+            width: 20px;
+            height: 10px;
+            border: 2px solid #000;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            top: 35px;
+            left: 15px;
+        }
+
+        .bad-guy-body {
+            position: absolute;
+            width: 55px;
+            height: 50px;
+            background: #FF6B00;
+            border-radius: 10px;
+            top: 70px;
+            left: 7px;
+            border: 3px solid #000;
+        }
+
+        .handcuffs {
+            position: absolute;
+            width: 60px;
+            height: 20px;
+            top: 95px;
+            left: 5px;
+            z-index: 1;
+        }
+
+        .handcuff {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #C0C0C0;
+            border-radius: 50%;
+            border: 3px solid #808080;
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.5);
+        }
+
+        .handcuff-left {
+            left: 0;
+        }
+
+        .handcuff-right {
+            right: 0;
+        }
+
+        .handcuff-chain {
+            position: absolute;
+            width: 24px;
+            height: 4px;
+            background: #808080;
+            top: 7px;
+            left: 18px;
+            border-radius: 2px;
+        }
+
+        .bad-guy-leg {
+            position: absolute;
+            width: 20px;
+            height: 32px;
+            background: #000;
+            border-radius: 5px;
+            bottom: 0;
+            border: 2px solid #333;
+        }
+
+        .bad-guy-leg-left {
+            left: 12px;
+        }
+
+        .bad-guy-leg-right {
+            right: 12px;
+        }
+
+        /* Walking animation */
+        @keyframes walk {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(5px); }
+        }
+
+        .walking {
+            animation: walk 0.5s infinite;
+        }
+
+        /* BAT CAVE SCENE */
+        .bat-cave-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #1a1a2e 0%, #16213e 30%, #0f3460 60%, #1a1a2e 100%);
+            z-index: 800;
+            opacity: 0;
+            transition: opacity 0.8s;
+        }
+
+        .bat-cave-scene.active {
+            opacity: 1;
+        }
+
+        /* Bat cave walls - rocky texture */
+        .cave-wall {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(50,50,70,0.5) 0%, transparent 50%),
+                radial-gradient(circle at 80% 60%, rgba(40,40,60,0.5) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(45,45,65,0.5) 0%, transparent 50%);
+        }
+
+        /* Stalactites hanging from ceiling */
+        .stalactite {
+            position: absolute;
+            top: 0;
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-top: 80px solid #2d3748;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8));
+        }
+
+        /* Bat logo on wall */
+        .bat-logo {
+            position: absolute;
+            font-size: 200px;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0.3;
+            text-shadow: 0 0 30px rgba(255,255,0,0.5);
+        }
+
+        /* Bed in bat cave */
+        .bat-bed {
+            position: absolute;
+            width: 300px;
+            height: 180px;
+            bottom: 150px;
+            left: 20%;
+            z-index: 5;
+        }
+
+        .bed-frame {
+            position: absolute;
+            width: 100%;
+            height: 140px;
+            bottom: 0;
+            background: #4a5568;
+            border: 5px solid #2d3748;
+            border-radius: 10px;
+        }
+
+        .bed-mattress {
+            position: absolute;
+            width: 90%;
+            height: 100px;
+            bottom: 35px;
+            left: 5%;
+            background: linear-gradient(to bottom, #7c3aed 0%, #6d28d9 100%);
+            border: 4px solid #5b21b6;
+            border-radius: 15px;
+            box-shadow: inset 0 -10px 20px rgba(0,0,0,0.3);
+        }
+
+        .bed-pillow {
+            position: absolute;
+            width: 80px;
+            height: 50px;
+            top: 10px;
+            left: 20px;
+            background: #a78bfa;
+            border: 3px solid #8b5cf6;
+            border-radius: 10px;
+            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.2);
+        }
+
+        .bed-blanket {
+            position: absolute;
+            width: 70%;
+            height: 70px;
+            bottom: 35px;
+            right: 5%;
+            background: linear-gradient(to right, #1e40af 0%, #1e3a8a 100%);
+            border: 3px solid #1e3a8a;
+            border-radius: 0 10px 10px 0;
+            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Toy box */
+        .toy-box {
+            position: absolute;
+            width: 200px;
+            height: 150px;
+            bottom: 150px;
+            right: 20%;
+            z-index: 5;
+        }
+
+        .toy-box-container {
+            position: absolute;
+            width: 100%;
+            height: 120px;
+            bottom: 0;
+            background: #8b4513;
+            border: 5px solid #654321;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .toy-box-lid {
+            position: absolute;
+            width: 105%;
+            height: 30px;
+            top: -15px;
+            left: -2.5%;
+            background: #a0522d;
+            border: 5px solid #654321;
+            border-radius: 10px;
+            box-shadow: 0 -3px 10px rgba(0,0,0,0.3);
+        }
+
+        .toy {
+            position: absolute;
+            font-size: 40px;
+            z-index: 6;
+        }
+
+        /* Bat cave floor */
+        .cave-floor {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(to bottom, #2d3748 0%, #1a202c 100%);
+            border-top: 3px solid #4a5568;
+        }
+
+        /* Magic sparkle animation */
+        @keyframes magic-sparkle {
+            0% { transform: scale(0) rotate(0deg); opacity: 0; }
+            50% { transform: scale(1.5) rotate(180deg); opacity: 1; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        .magic-sparkle {
+            position: fixed;
+            font-size: 60px;
+            animation: magic-sparkle 1s ease-out;
+            z-index: 900;
+        }
+
+        /* Glowing crystals in cave */
+        .crystal {
+            position: absolute;
+            width: 30px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+            clip-path: polygon(50% 0%, 100% 30%, 80% 100%, 20% 100%, 0% 30%);
+            box-shadow: 0 0 20px #3b82f6, 0 0 40px #60a5fa;
+            animation: crystal-glow 2s infinite;
+        }
+
+        @keyframes crystal-glow {
+            0%, 100% { opacity: 0.7; box-shadow: 0 0 20px #3b82f6, 0 0 40px #60a5fa; }
+            50% { opacity: 1; box-shadow: 0 0 30px #3b82f6, 0 0 60px #60a5fa; }
+        }
+
+        /* Bats flying in cave */
+        @keyframes bat-fly {
+            0% { transform: translateX(0) translateY(0); }
+            25% { transform: translateX(100px) translateY(-30px); }
+            50% { transform: translateX(200px) translateY(20px); }
+            75% { transform: translateX(300px) translateY(-20px); }
+            100% { transform: translateX(400px) translateY(0); }
+        }
+
+        .flying-bat {
+            position: absolute;
+            font-size: 40px;
+            animation: bat-fly 5s linear infinite;
+            z-index: 3;
+        }
+
+        /* TRAP BARS - drop from ceiling FULL SCREEN! */
+        .trap-cage {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 860;
+            pointer-events: none;
+        }
+
+        .trap-bar {
+            position: absolute;
+            width: 60px;
+            height: 100%;
+            background: linear-gradient(to right, rgba(136,136,136,0.6) 0%, rgba(85,85,85,0.6) 50%, rgba(136,136,136,0.6) 100%);
+            border-radius: 30px;
+            box-shadow: inset -5px 0 12px rgba(0,0,0,0.5), inset 5px 0 12px rgba(255,255,255,0.3), 0 8px 25px rgba(0,0,0,0.9);
+            top: -100%;
+            transition: top 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            opacity: 0.7;
+        }
+
+        .trap-bar.dropped {
+            top: 0;
+        }
+
+        .trap-top {
+            position: absolute;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(to bottom, #666 0%, #444 50%, #666 100%);
+            border-bottom: 8px solid #333;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.9);
+            top: -100%;
+            transition: top 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 1;
+        }
+
+        .trap-top.dropped {
+            top: 0;
+        }
+
+        .trap-floor {
+            position: absolute;
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(to top, #555 0%, #333 100%);
+            border-top: 8px solid #222;
+            bottom: 0;
+            box-shadow: 0 -8px 25px rgba(0,0,0,0.7);
+        }
+
+        .helicopter {
+            position: absolute;
+            font-size: 200px;
+            z-index: 600;
+            transition: all 2s ease-out;
+        }
+
+        .jail-scene {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 700;
+            text-align: center;
+        }
+
+        .jail-cell {
+            position: relative;
+            width: 600px;
+            height: 500px;
+            background: linear-gradient(to bottom, #444 0%, #222 100%);
+            border: 10px solid #333;
+            border-radius: 10px;
+            display: inline-block;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+        }
+
+        .jail-bars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 50px;
+            z-index: 10;
+        }
+
+        .jail-bar {
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(to right, #888 0%, #555 50%, #888 100%);
+            border-radius: 10px;
+            box-shadow: inset -2px 0 5px rgba(0,0,0,0.5), inset 2px 0 5px rgba(255,255,255,0.3);
+        }
+
+        .jail-prisoner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 150px;
+            z-index: 5;
+        }
+
+        .jail-floor {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+            background: #1a1a1a;
+            border-top: 3px solid #333;
+        }
+
+        .jail-door {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 200px;
+            height: 100%;
+            background: linear-gradient(to right, #666 0%, #444 50%, #666 100%);
+            border-left: 10px solid #333;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 20px;
+            z-index: 15;
+            transform-origin: right;
+            transition: transform 1s ease-out;
+        }
+
+        .jail-door.closed {
+            transform: translateX(0);
+        }
+
+        .jail-door.open {
+            transform: translateX(200px);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(-50%) rotate(-1deg); }
+            50% { transform: translateX(-50%) rotate(1deg); }
+        }
+
+        @keyframes shake-big {
+            0%, 100% { transform: translateX(-50%) rotate(-1deg) scale(5.5); }
+            50% { transform: translateX(-50%) rotate(1deg) scale(5.5); }
+        }
+
+        .water-stream {
+            position: absolute;
+            font-size: 50px;
+            pointer-events: none;
+            z-index: 45;
+            animation: stream 0.5s forwards;
+        }
+
+        @keyframes stream {
+            0% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+        }
+
+        .fire {
+            position: absolute;
+            cursor: pointer;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .fire:hover .fire-emoji {
+            transform: scale(1.1);
+        }
+
+        .fire-emoji {
+            font-size: 140px;
+            animation: flicker 0.3s infinite;
+            position: absolute;
+            top: -150px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .fire-emoji.big-fire {
+            font-size: 220px;
+            top: -200px;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .letter {
+            position: absolute;
+            top: -130px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 90px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
+            z-index: 11;
+        }
+
+        .letter.big-fire {
+            top: -180px;
+            font-size: 110px;
+        }
+
+        .fireman {
+            position: absolute;
+            font-size: 50px;
+            z-index: 55;
+            transition: all 0.6s ease-out;
+        }
+
+        .water-splash {
+            position: absolute;
+            font-size: 80px;
+            pointer-events: none;
+            animation: splash 0.6s forwards;
+            z-index: 10;
+        }
+
+        @keyframes splash {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .celebration {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            pointer-events: none;
+            animation: celebrate 1s forwards;
+            z-index: 200;
+        }
+
+        @keyframes celebrate {
+            0% {
+                transform: translate(-50%, -50%) scale(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(2) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        #instruction {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.98);
+            padding: 25px 40px;
+            border-radius: 20px;
+            font-size: 35px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+            border: 4px solid #4CAF50;
+            z-index: 100;
+            text-align: center;
+        }
+
+        #next-letter {
+            position: absolute;
+            top: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 215, 0, 0.98);
+            padding: 30px 50px;
+            border-radius: 25px;
+            font-size: 80px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            border: 6px solid #FF6B6B;
+            z-index: 100;
+            text-align: center;
+            animation: pulse 2s infinite;
+            transition: transform 0.2s;
+        }
+
+        #next-letter:hover {
+            transform: translateX(-50%) scale(1.15) !important;
+            background: rgba(255, 230, 0, 0.98);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.1); }
+        }
+
+        /* Alphabet progress bar */
+        #alphabet-progress {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 4px solid #4CAF50;
+            z-index: 100;
+            text-align: center;
+            max-width: 90%;
+            overflow-x: auto;
+        }
+
+        .letter-progress {
+            display: inline-block;
+            margin: 0 2px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 22px;
+            transition: all 0.2s;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        .letter-progress.completed {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .letter-progress.current {
+            background: #FFD700;
+            color: #333;
+            animation: pulse 1s infinite;
+        }
+
+        .letter-progress.upcoming {
+            background: #DDD;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" style="position:fixed;top:12px;left:12px;z-index:9999;font-size:2.5rem;text-decoration:none;background:rgba(255,255,255,0.85);border-radius:16px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">🏠</a>
+    <div id="game-container">
+        <div id="score-board">
+            🔥 <span id="score">0</span> / 26
+        </div>
+
+        <button id="language-toggle">English 🇺🇸</button>
+        <button id="music-toggle">Music 🎵 ON</button>
+
+        <div id="instruction">
+            Find the letter:
+        </div>
+
+        <div id="next-letter">A</div>
+
+        <div id="alphabet-progress"></div>
+
+        <div id="firetruck">🚒</div>
+        <div id="firefighter-boy">👦🏽</div>
+    </div>
+
+    <script>
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        let currentLetterIndex = 0;
+        let score = 0;
+        let language = 'en'; // 'en' or 'es'
+        let currentFireIsBig = false;
+        let waitingForLetter = true; // Wait for correct letter click
+        let currentFires = []; // Track current fires on screen
+        let gameActive = true; // Pause game during special scenes
+
+        const translations = {
+            en: {
+                instruction: 'Put out the fire:',
+                celebrate: ['Amazing!', 'Perfect!', 'You did it!', 'Great job!', 'Awesome!'],
+                langButton: 'Español 🇲🇽',
+                complete: '🎉 You know the whole alphabet! 🎉'
+            },
+            es: {
+                instruction: 'Apaga el fuego:',
+                celebrate: ['¡Increíble!', '¡Perfecto!', '¡Lo hiciste!', '¡Muy bien!', '¡Excelente!'],
+                langButton: 'English 🇺🇸',
+                complete: '¡🎉 Conoces todo el alfabeto! 🎉'
+            }
+        };
+
+        const letterNames = {
+            en: {
+                'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D', 'E': 'E', 'F': 'F',
+                'G': 'G', 'H': 'H', 'I': 'I', 'J': 'J', 'K': 'K', 'L': 'L',
+                'M': 'M', 'N': 'N', 'O': 'O', 'P': 'P', 'Q': 'Q', 'R': 'R',
+                'S': 'S', 'T': 'T', 'U': 'U', 'V': 'V', 'W': 'W', 'X': 'X',
+                'Y': 'Y', 'Z': 'Z'
+            },
+            es: {
+                'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D', 'E': 'E', 'F': 'F',
+                'G': 'G', 'H': 'H', 'I': 'I', 'J': 'J', 'K': 'K', 'L': 'L',
+                'M': 'M', 'N': 'N', 'Ñ': 'Ñ', 'O': 'O', 'P': 'P', 'Q': 'Q',
+                'R': 'R', 'S': 'S', 'T': 'T', 'U': 'U', 'V': 'V', 'W': 'W',
+                'X': 'X', 'Y': 'Y', 'Z': 'Z'
+            }
+        };
+
+        const letterAffirmations = {
+            en: {
+                'A': 'A is Awesome!', 'B': 'B is Beautiful!', 'C': 'C is Cool!',
+                'D': 'D is Daring!', 'E': 'E is Excellent!', 'F': 'F is Fantastic!',
+                'G': 'G is Great!', 'H': 'H is Happy!', 'I': 'I is Incredible!',
+                'J': 'J is Joyful!', 'K': 'K is Kind!', 'L': 'L is Lovely!',
+                'M': 'M is Magnificent!', 'N': 'N is Nice!', 'O': 'O is Outstanding!',
+                'P': 'P is Perfect!', 'Q': 'Q is Quick!', 'R': 'R is Rad!',
+                'S': 'S is Super!', 'T': 'T is Terrific!', 'U': 'U is Unique!',
+                'V': 'V is Victorious!', 'W': 'W is Wonderful!', 'X': 'X is eXciting!',
+                'Y': 'Y is Yes!', 'Z': 'Z is Zippy!'
+            },
+            es: {
+                'A': '¡A es Asombroso!', 'B': '¡B es Bueno!', 'C': '¡C es Chevere!',
+                'D': '¡D es Divertido!', 'E': '¡E es Excelente!', 'F': '¡F es Fantástico!',
+                'G': '¡G es Genial!', 'H': '¡H es Hermoso!', 'I': '¡I es Increíble!',
+                'J': '¡J es Juguetón!', 'K': '¡K es Kool!', 'L': '¡L es Lindo!',
+                'M': '¡M es Maravilloso!', 'N': '¡N es Notable!', 'O': '¡O es Optimista!',
+                'P': '¡P es Perfecto!', 'Q': '¡Q es Querido!', 'R': '¡R es Rápido!',
+                'S': '¡S es Súper!', 'T': '¡T es Tremendo!', 'U': '¡U es Único!',
+                'V': '¡V es Victorioso!', 'W': '¡W es Wow!', 'X': '¡X es eXtra!',
+                'Y': '¡Y es Yes!', 'Z': '¡Z es Zumbador!'
+            }
+        };
+
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score');
+        const instructionDisplay = document.getElementById('instruction');
+        const nextLetterDisplay = document.getElementById('next-letter');
+        const alphabetProgress = document.getElementById('alphabet-progress');
+        const languageButton = document.getElementById('language-toggle');
+        const musicButton = document.getElementById('music-toggle');
+
+        // Make letter clickable to hear it again!
+        nextLetterDisplay.style.cursor = 'pointer';
+        nextLetterDisplay.addEventListener('click', function() {
+            if (currentLetterIndex < letters.length) {
+                speak(letters[currentLetterIndex], language);
+                // Flash effect
+                this.style.transform = 'translateX(-50%) scale(1.2)';
+                setTimeout(() => {
+                    this.style.transform = 'translateX(-50%) scale(1)';
+                }, 200);
+            }
+        });
+
+        // Initialize alphabet progress bar
+        function updateAlphabetProgress() {
+            alphabetProgress.innerHTML = '';
+            letters.forEach((letter, index) => {
+                const letterSpan = document.createElement('span');
+                letterSpan.className = 'letter-progress';
+                letterSpan.textContent = letter;
+
+                if (index < currentLetterIndex) {
+                    letterSpan.classList.add('completed');
+                } else if (index === currentLetterIndex) {
+                    letterSpan.classList.add('current');
+                } else {
+                    letterSpan.classList.add('upcoming');
+                }
+
+                alphabetProgress.appendChild(letterSpan);
+            });
+        }
+
+        let musicEnabled = true;
+
+        function updateNextLetter() {
+            if (currentLetterIndex < letters.length) {
+                nextLetterDisplay.textContent = letters[currentLetterIndex];
+                nextLetterDisplay.title = language === 'en' ? 'Click to hear the letter!' : '¡Haz clic para escuchar la letra!';
+                instructionDisplay.textContent = translations[language].instruction;
+
+                // Update alphabet progress bar
+                updateAlphabetProgress();
+
+                // Announce the new letter
+                setTimeout(() => {
+                    speak(letters[currentLetterIndex], language);
+                }, 500);
+            }
+        }
+
+        // Sound effects using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playWaterSound() {
+            // Make a loud water spray sound
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = 'sawtooth';
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(80, audioContext.currentTime + 0.5);
+
+            gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function playCelebrationSound() {
+            // Happy celebration sound
+            [0, 0.15, 0.3].forEach((delay, index) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                const freq = 400 + (index * 200);
+                oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + delay);
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + delay);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + delay + 0.3);
+
+                oscillator.start(audioContext.currentTime + delay);
+                oscillator.stop(audioContext.currentTime + delay + 0.3);
+            });
+        }
+
+        function speak(text, lang) {
+            // Just say the letter name without "capital"
+            const utterance = new SpeechSynthesisUtterance(text.toLowerCase());
+            utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
+            utterance.rate = 0.7;
+            utterance.pitch = 1.2;
+            speechSynthesis.speak(utterance);
+        }
+
+        function createFire() {
+            if (!gameActive) {
+                // Game paused for special scene, don't create fire
+                return;
+            }
+
+            if (currentLetterIndex >= letters.length) {
+                setTimeout(() => {
+                    showCompletion();
+                }, 500);
+                return;
+            }
+
+            if (!waitingForLetter) {
+                // Still working on previous fire, don't create new one
+                return;
+            }
+
+            // Clean up old fires first
+            currentFires.forEach(fire => {
+                if (fire.parentNode) {
+                    fire.style.transition = 'opacity 0.5s';
+                    fire.style.opacity = '0';
+                    setTimeout(() => fire.remove(), 500);
+                }
+            });
+            currentFires = [];
+
+            // Create ONE house with the correct letter!
+            const correctLetter = letters[currentLetterIndex];
+            currentFireIsBig = Math.random() > 0.85; // 15% chance big fire with plane - Sonic appears 85% of the time!
+            const fireElement = createBurningBuilding(correctLetter);
+            if (fireElement) {
+                currentFires.push(fireElement);
+            }
+        }
+
+        function createBurningPlane(letter) {
+            // Create a flying plane that's on fire!
+            const plane = document.createElement('div');
+            plane.className = 'flying-plane';
+
+            const startY = Math.random() * 200 + 150; // Fly in the sky
+            const startX = -200;
+            const endX = window.innerWidth + 200;
+
+            plane.style.left = startX + 'px';
+            plane.style.top = startY + 'px';
+
+            const fireEmojis = '🔥🔥🔥';
+
+            plane.innerHTML = `
+                ✈️
+                <div class="fire" style="position: absolute; top: -80px; left: 50%; transform: translateX(-50%);">
+                    <div class="fire-emoji" style="font-size: 100px; top: -60px;">${fireEmojis}</div>
+                    <div class="letter" style="font-size: 80px; top: -50px;">${letter}</div>
+                </div>
+            `;
+
+            // Fly plane across screen SLOWLY
+            setTimeout(() => {
+                plane.style.transition = 'left 20s linear';
+                plane.style.left = endX + 'px';
+            }, 100);
+
+            plane.addEventListener('click', function() {
+                const correctLetter = letters[currentLetterIndex];
+
+                if (letter !== correctLetter) {
+                    // Wrong letter clicked!
+                    showWrongLetterMessage(letter, correctLetter);
+                    return;
+                }
+
+                // Correct letter! Announce it!
+                speak(letter, language);
+
+                // Correct letter! Proceed with rescue
+                waitingForLetter = false;
+
+                // Remove all wrong fires from screen
+                currentFires.forEach(fire => {
+                    if (fire !== plane && fire.parentNode) {
+                        fire.style.transition = 'opacity 0.5s';
+                        fire.style.opacity = '0';
+                        setTimeout(() => fire.remove(), 500);
+                    }
+                });
+                currentFires = [plane]; // Keep only the correct one
+
+                rescueBurningPlane(plane, letter, startY);
+            });
+
+            gameContainer.appendChild(plane);
+
+            // Auto-remove if not clicked (longer time since it's slower)
+            setTimeout(() => {
+                if (plane.parentNode) {
+                    plane.remove();
+                }
+            }, 22000);
+
+            return plane;
+        }
+
+        function createBurningBuilding(letter) {
+            // Create a building with fire
+            const building = document.createElement('div');
+            building.className = 'building';
+
+            const x = Math.random() * (window.innerWidth - 350) + 100;
+            building.style.left = x + 'px';
+
+            // Add windows
+            const windowPositions = [
+                { left: '30px', top: '100px' },
+                { left: '160px', top: '100px' },
+                { left: '30px', top: '220px' },
+                { left: '160px', top: '220px' }
+            ];
+
+            let windowHTML = '';
+            windowPositions.forEach(pos => {
+                windowHTML += `<div class="window" style="left: ${pos.left}; top: ${pos.top};"></div>`;
+            });
+
+            // Add different types of people in windows - NO BAD GUYS!
+            const peopleTypes = ['👨', '👩', '👴', '👵', '👶', '🧒', '🐶', '🐱'];
+            const peopleInWindows = Math.floor(Math.random() * 2) + 3; // 3-4 people
+            let peopleHTML = '';
+            for (let i = 0; i < peopleInWindows; i++) {
+                const winPos = windowPositions[i];
+                const randomPerson = peopleTypes[Math.floor(Math.random() * peopleTypes.length)];
+                peopleHTML += `<div class="person" data-person-id="${i}" style="left: ${parseInt(winPos.left) + 10}px; top: ${parseInt(winPos.top) + 10}px;">${randomPerson}</div>`;
+            }
+
+            const fireClass = currentFireIsBig ? 'big-fire' : '';
+            const fireEmojis = currentFireIsBig ? '🔥🔥🔥🔥' : '🔥🔥';
+
+            building.innerHTML = `
+                ${windowHTML}
+                ${peopleHTML}
+                <div class="fire" style="position: absolute; top: -220px; left: 50%; transform: translateX(-50%);">
+                    <div class="fire-emoji ${fireClass}">${fireEmojis}</div>
+                    <div class="letter ${fireClass}">${letter}</div>
+                </div>
+            `;
+
+            building.addEventListener('click', function(e) {
+                // Don't respond if clicking people or if already processing
+                if (e.target.classList.contains('person') || !waitingForLetter) {
+                    return;
+                }
+
+                // Clicking the building or fire - ANNOUNCE THE LETTER LOUDLY!
+                speak(letter, language);
+
+                // Show big letter popup briefly
+                const bigLetter = document.createElement('div');
+                bigLetter.textContent = letter;
+                bigLetter.style.position = 'fixed';
+                bigLetter.style.left = '50%';
+                bigLetter.style.top = '50%';
+                bigLetter.style.transform = 'translate(-50%, -50%)';
+                bigLetter.style.fontSize = '200px';
+                bigLetter.style.fontWeight = 'bold';
+                bigLetter.style.color = '#FFD700';
+                bigLetter.style.textShadow = '0 0 40px #FFD700, 0 0 80px #FFA500, 8px 8px 16px black';
+                bigLetter.style.zIndex = '1000';
+                bigLetter.style.animation = 'celebrate 0.8s';
+                bigLetter.style.pointerEvents = 'none';
+                gameContainer.appendChild(bigLetter);
+
+                setTimeout(() => bigLetter.remove(), 800);
+
+                // Proceed with rescue - mark as not waiting immediately
+                waitingForLetter = false;
+
+                const buildingRect = building.getBoundingClientRect();
+                if (currentFireIsBig) {
+                    callPlane(building, letter, buildingRect.left + 125, buildingRect.top);
+                } else {
+                    putOutFire(building, letter, buildingRect.left + 125, buildingRect.top);
+                }
+            });
+
+            gameContainer.appendChild(building);
+
+            // Add bad guy most of the time (80% chance) for testing!
+            if (Math.random() > 0.2) {
+                createBadGuy(building);
+            }
+
+            return building;
+        }
+
+        function createBadGuy(building) {
+            const buildingRect = building.getBoundingClientRect();
+
+            const badGuy = document.createElement('div');
+            badGuy.className = 'bad-guy-standalone';
+            const badGuyTypes = ['🦹‍♂️', '🦹‍♀️', '🦹'];
+            badGuy.textContent = badGuyTypes[Math.floor(Math.random() * badGuyTypes.length)];
+
+            // Place bad guy to the right or left of building
+            const side = Math.random() > 0.5 ? 1 : -1;
+            badGuy.style.left = (buildingRect.left + (side * 200)) + 'px';
+            badGuy.style.bottom = '150px';
+
+            gameContainer.appendChild(badGuy);
+
+            // Add label
+            const label = document.createElement('div');
+            label.textContent = language === 'en' ? '👆 CLICK THE BAD GUY!' : '👆 ¡HAZ CLIC EN EL VILLANO!';
+            label.style.position = 'absolute';
+            label.style.left = badGuy.style.left;
+            label.style.bottom = '350px';
+            label.style.fontSize = '35px';
+            label.style.fontWeight = 'bold';
+            label.style.color = '#FFFFFF';
+            label.style.background = 'rgba(255, 0, 0, 0.9)';
+            label.style.padding = '10px 20px';
+            label.style.borderRadius = '15px';
+            label.style.border = '4px solid #FFD700';
+            label.style.textShadow = '3px 3px 6px black';
+            label.style.zIndex = '16';
+            label.style.animation = 'flicker 0.5s infinite';
+            gameContainer.appendChild(label);
+
+            badGuy.addEventListener('click', function() {
+                if (!gameActive) return; // Already in a scene
+
+                label.remove();
+                policeArrest(badGuy, building);
+            });
+
+            // Auto-remove if not clicked after 10 seconds
+            setTimeout(() => {
+                if (badGuy.parentNode) {
+                    badGuy.style.transition = 'opacity 0.5s';
+                    badGuy.style.opacity = '0';
+                    setTimeout(() => badGuy.remove(), 500);
+                }
+                if (label.parentNode) {
+                    label.remove();
+                }
+            }, 10000);
+        }
+
+        function policeArrest(badGuy, building) {
+            // EPIC POLICE ARREST SCENE - DAYLIGHT WITH SUN!
+
+            // PAUSE THE GAME during this special scene
+            gameActive = false;
+
+            // Stop background music during police scene
+            const wasEnabled = musicEnabled;
+            musicEnabled = false;
+            stopBackgroundMusic();
+
+            // Create bright daylight scene
+            const sceneBackground = document.createElement('div');
+            sceneBackground.className = 'police-scene-bg';
+            document.body.appendChild(sceneBackground);
+
+            // Add bright sun
+            const sun = document.createElement('div');
+            sun.className = 'sun';
+            sceneBackground.appendChild(sun);
+
+            // Add fluffy clouds
+            for (let i = 0; i < 5; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud';
+                cloud.style.left = (Math.random() * window.innerWidth) + 'px';
+                cloud.style.top = (Math.random() * 250 + 50) + 'px';
+                cloud.style.width = (100 + Math.random() * 120) + 'px';
+                cloud.style.height = (50 + Math.random() * 50) + 'px';
+                sceneBackground.appendChild(cloud);
+            }
+
+            // Add ground/street
+            const ground = document.createElement('div');
+            ground.className = 'police-ground';
+            sceneBackground.appendChild(ground);
+
+            // Add road lines
+            for (let i = 0; i < 8; i++) {
+                const line = document.createElement('div');
+                line.className = 'road-line';
+                line.style.left = (i * 250) + 'px';
+                ground.appendChild(line);
+            }
+
+            setTimeout(() => sceneBackground.classList.add('active'), 100);
+
+            // Sirens!
+            playSirenSound();
+            setTimeout(playSirenSound, 700);
+
+            setTimeout(() => {
+                const centerX = window.innerWidth / 2;
+
+                // Alert
+                const alert = document.createElement('div');
+                alert.textContent = language === 'en' ? '🚨 POLICE OPERATION! 🚨' : '🚨 ¡OPERACIÓN POLICIAL! 🚨';
+                alert.style.position = 'fixed';
+                alert.style.left = '50%';
+                alert.style.top = '12%';
+                alert.style.transform = 'translateX(-50%)';
+                alert.style.fontSize = '75px';
+                alert.style.fontWeight = 'bold';
+                alert.style.color = '#FFFFFF';
+                alert.style.textShadow = '6px 6px 12px rgba(0,0,0,0.9)';
+                alert.style.background = 'rgba(255, 0, 0, 0.98)';
+                alert.style.padding = '45px 70px';
+                alert.style.borderRadius = '40px';
+                alert.style.border = '12px solid #FFD700';
+                alert.style.zIndex = '700';
+                sceneBackground.appendChild(alert);
+
+                // POLICE CARS ARRIVE!
+                setTimeout(() => {
+                    alert.remove();
+
+                    // POLICE CARS STORM IN!
+                    const cars = [];
+                    for (let i = 0; i < 3; i++) {
+                        const car = document.createElement('div');
+                        car.textContent = '🚓';
+                        car.style.position = 'fixed';
+                        car.style.fontSize = '120px';
+                        car.style.zIndex = '620';
+                        car.style.transition = 'all 1.2s ease-out';
+
+                        if (i < 2) {
+                            car.style.left = '-250px';
+                            car.style.bottom = (200 + i * 100) + 'px';
+                        } else {
+                            car.style.left = (window.innerWidth + 250) + 'px';
+                            car.style.bottom = '200px';
+                        }
+
+                        sceneBackground.appendChild(car);
+                        cars.push(car);
+
+                        setTimeout(() => {
+                            if (i < 2) {
+                                car.style.left = (centerX - 350 + i * 150) + 'px';
+                            } else {
+                                car.style.left = (centerX + 250) + 'px';
+                            }
+                        }, 100 + i * 200);
+                    }
+
+                    playSirenSound();
+                    setTimeout(playSirenSound, 500);
+
+                    // Create detailed police officers and bad guy
+                    setTimeout(() => {
+                        // Create bad guy with handcuffs
+                        const caughtBadGuy = document.createElement('div');
+                        caughtBadGuy.className = 'bad-guy-caught';
+                        caughtBadGuy.style.left = (centerX - 35) + 'px';
+                        caughtBadGuy.style.bottom = '250px';
+
+                        caughtBadGuy.innerHTML = `
+                            <div class="bad-guy-head">
+                                <div class="bad-guy-eyebrow bad-guy-eyebrow-left"></div>
+                                <div class="bad-guy-eyebrow bad-guy-eyebrow-right"></div>
+                                <div class="bad-guy-mask">
+                                    <div class="bad-guy-eyes bad-guy-eye-left"></div>
+                                    <div class="bad-guy-eyes bad-guy-eye-right"></div>
+                                </div>
+                                <div class="bad-guy-mouth"></div>
+                            </div>
+                            <div class="bad-guy-body"></div>
+                            <div class="handcuffs">
+                                <div class="handcuff handcuff-left"></div>
+                                <div class="handcuff-chain"></div>
+                                <div class="handcuff handcuff-right"></div>
+                            </div>
+                            <div class="bad-guy-leg bad-guy-leg-left"></div>
+                            <div class="bad-guy-leg bad-guy-leg-right"></div>
+                        `;
+
+                        sceneBackground.appendChild(caughtBadGuy);
+
+                        // Create two police officers
+                        const officer1 = document.createElement('div');
+                        officer1.className = 'police-officer';
+                        officer1.style.left = (centerX - 150) + 'px';
+                        officer1.style.bottom = '250px';
+
+                        officer1.innerHTML = `
+                            <div class="police-hat">
+                                <div class="police-hat-badge"></div>
+                            </div>
+                            <div class="police-head"></div>
+                            <div class="police-body">
+                                <div class="police-badge"></div>
+                            </div>
+                            <div class="police-arm police-arm-left">
+                                <div class="police-hand"></div>
+                            </div>
+                            <div class="police-arm police-arm-right">
+                                <div class="police-hand"></div>
+                            </div>
+                            <div class="police-leg police-leg-left">
+                                <div class="police-shoe"></div>
+                            </div>
+                            <div class="police-leg police-leg-right">
+                                <div class="police-shoe"></div>
+                            </div>
+                        `;
+
+                        sceneBackground.appendChild(officer1);
+
+                        const officer2 = document.createElement('div');
+                        officer2.className = 'police-officer';
+                        officer2.style.left = (centerX + 80) + 'px';
+                        officer2.style.bottom = '250px';
+
+                        officer2.innerHTML = `
+                            <div class="police-hat">
+                                <div class="police-hat-badge"></div>
+                            </div>
+                            <div class="police-head"></div>
+                            <div class="police-body">
+                                <div class="police-badge"></div>
+                            </div>
+                            <div class="police-arm police-arm-left">
+                                <div class="police-hand"></div>
+                            </div>
+                            <div class="police-arm police-arm-right">
+                                <div class="police-hand"></div>
+                            </div>
+                            <div class="police-leg police-leg-left">
+                                <div class="police-shoe"></div>
+                            </div>
+                            <div class="police-leg police-leg-right">
+                                <div class="police-shoe"></div>
+                            </div>
+                        `;
+
+                        sceneBackground.appendChild(officer2);
+
+                        badGuy.remove(); // Remove emoji bad guy
+
+                        playCelebrationSound();
+
+                        // ARRESTED message!
+                        setTimeout(() => {
+                            const arrested = document.createElement('div');
+                            arrested.textContent = language === 'en' ? '🎉 ARRESTED! 🎉' : '🎉 ¡ARRESTADO! 🎉';
+                            arrested.style.position = 'fixed';
+                            arrested.style.left = '50%';
+                            arrested.style.top = '25%';
+                            arrested.style.transform = 'translateX(-50%)';
+                            arrested.style.fontSize = '85px';
+                            arrested.style.fontWeight = 'bold';
+                            arrested.style.color = '#FFFFFF';
+                            arrested.style.textShadow = '7px 7px 14px rgba(0,0,0,0.9)';
+                            arrested.style.background = 'rgba(0, 200, 0, 0.98)';
+                            arrested.style.padding = '50px 80px';
+                            arrested.style.borderRadius = '45px';
+                            arrested.style.border = '14px solid #FFD700';
+                            arrested.style.zIndex = '750';
+                            sceneBackground.appendChild(arrested);
+
+                            playCelebrationSound();
+                            setTimeout(playCelebrationSound, 200);
+
+                            // Walking to jail message!
+                            setTimeout(() => {
+                                arrested.textContent = language === 'en' ? '👮 WALKING TO JAIL 👮' : '👮 CAMINO A LA CÁRCEL 👮';
+                                arrested.style.background = 'rgba(30, 58, 138, 0.95)';
+
+                                // Add walking animation
+                                officer1.classList.add('walking');
+                                officer2.classList.add('walking');
+                                caughtBadGuy.classList.add('walking');
+
+                                // Walk to the right side (to jail) - FASTER!
+                                const walkDistance = 400;
+                                officer1.style.transition = 'left 2s linear';
+                                officer2.style.transition = 'left 2s linear';
+                                caughtBadGuy.style.transition = 'left 2s linear';
+
+                                officer1.style.left = (centerX - 150 + walkDistance) + 'px';
+                                officer2.style.left = (centerX + 80 + walkDistance) + 'px';
+                                caughtBadGuy.style.left = (centerX - 35 + walkDistance) + 'px';
+
+                                // Arrive at jail!
+                                setTimeout(() => {
+                                    arrested.remove();
+                                    officer1.remove();
+                                    officer2.remove();
+                                    caughtBadGuy.remove();
+                                    cars.forEach(c => c.remove());
+
+                                    // AMAZING JAIL SCENE WITH REAL BARS!
+                                    const jailScene = document.createElement('div');
+                                    jailScene.className = 'jail-scene';
+
+                                    // Title
+                                    const title = document.createElement('div');
+                                    title.textContent = language === 'en' ? '🏛️ COUNTY JAIL 🏛️' : '🏛️ CÁRCEL 🏛️';
+                                    title.style.fontSize = '65px';
+                                    title.style.fontWeight = 'bold';
+                                    title.style.color = '#FFD700';
+                                    title.style.marginBottom = '30px';
+                                    title.style.textShadow = '4px 4px 8px black';
+                                    jailScene.appendChild(title);
+
+                                    // Create jail cell
+                                    const cell = document.createElement('div');
+                                    cell.className = 'jail-cell';
+
+                                    // Floor
+                                    const floor = document.createElement('div');
+                                    floor.className = 'jail-floor';
+                                    cell.appendChild(floor);
+
+                                    // Prisoner inside (using detailed bad guy)
+                                    const prisoner = document.createElement('div');
+                                    prisoner.className = 'bad-guy-caught';
+                                    prisoner.style.position = 'absolute';
+                                    prisoner.style.top = '50%';
+                                    prisoner.style.left = '50%';
+                                    prisoner.style.transform = 'translate(-50%, -50%) scale(2)';
+                                    prisoner.style.zIndex = '5';
+
+                                    prisoner.innerHTML = `
+                                        <div class="bad-guy-head">
+                                            <div class="bad-guy-eyebrow bad-guy-eyebrow-left"></div>
+                                            <div class="bad-guy-eyebrow bad-guy-eyebrow-right"></div>
+                                            <div class="bad-guy-mask">
+                                                <div class="bad-guy-eyes bad-guy-eye-left"></div>
+                                                <div class="bad-guy-eyes bad-guy-eye-right"></div>
+                                            </div>
+                                            <div class="bad-guy-mouth"></div>
+                                        </div>
+                                        <div class="bad-guy-body"></div>
+                                        <div class="handcuffs">
+                                            <div class="handcuff handcuff-left"></div>
+                                            <div class="handcuff-chain"></div>
+                                            <div class="handcuff handcuff-right"></div>
+                                        </div>
+                                        <div class="bad-guy-leg bad-guy-leg-left"></div>
+                                        <div class="bad-guy-leg bad-guy-leg-right"></div>
+                                    `;
+
+                                    cell.appendChild(prisoner);
+
+                                    // Bars (front)
+                                    const bars = document.createElement('div');
+                                    bars.className = 'jail-bars';
+                                    for (let i = 0; i < 8; i++) {
+                                        const bar = document.createElement('div');
+                                        bar.className = 'jail-bar';
+                                        bars.appendChild(bar);
+                                    }
+                                    cell.appendChild(bars);
+
+                                    // Door (starts open)
+                                    const door = document.createElement('div');
+                                    door.className = 'jail-door open';
+                                    for (let i = 0; i < 3; i++) {
+                                        const doorBar = document.createElement('div');
+                                        doorBar.className = 'jail-bar';
+                                        door.appendChild(doorBar);
+                                    }
+                                    cell.appendChild(door);
+
+                                    jailScene.appendChild(cell);
+
+                                    // Message
+                                    const message = document.createElement('div');
+                                    message.textContent = language === 'en' ? 'LOCKED UP!' : '¡ENCERRADO!';
+                                    message.style.fontSize = '60px';
+                                    message.style.fontWeight = 'bold';
+                                    message.style.color = '#FF4444';
+                                    message.style.marginTop = '30px';
+                                    message.style.textShadow = '3px 3px 6px black';
+                                    jailScene.appendChild(message);
+
+                                    document.body.appendChild(jailScene);
+
+                                    badGuy.remove();
+
+                                    // Door slams shut after 1 second!
+                                    setTimeout(() => {
+                                        door.classList.remove('open');
+                                        door.classList.add('closed');
+
+                                        // LOUD METAL DOOR SLAM!
+                                        playJailDoorSlam();
+
+                                        // Shake the screen!
+                                        jailScene.style.animation = 'celebrate 0.3s';
+
+                                        // Prisoner reacts!
+                                        prisoner.style.transition = 'transform 0.5s';
+                                        prisoner.style.transform = 'translate(-50%, -50%) scale(1.8)';
+
+                                        setTimeout(() => {
+                                            prisoner.style.transform = 'translate(-50%, -50%) scale(2)';
+                                        }, 300);
+                                    }, 1000);
+
+                                    // EXCITING JAIL BREAK ESCAPE!
+                                    setTimeout(() => {
+                                        // Warning message
+                                        const warning = document.createElement('div');
+                                        warning.textContent = language === 'en' ? '⚠️ ESCAPING! ⚠️' : '⚠️ ¡ESCAPANDO! ⚠️';
+                                        warning.style.position = 'fixed';
+                                        warning.style.left = '50%';
+                                        warning.style.top = '10%';
+                                        warning.style.transform = 'translateX(-50%)';
+                                        warning.style.fontSize = '70px';
+                                        warning.style.fontWeight = 'bold';
+                                        warning.style.color = '#FF0000';
+                                        warning.style.textShadow = '5px 5px 10px black';
+                                        warning.style.zIndex = '800';
+                                        warning.style.animation = 'flicker 0.3s infinite';
+                                        document.body.appendChild(warning);
+
+                                        playSirenSound();
+
+                                        // Prisoner shakes the bars!
+                                        let shakeCount = 0;
+                                        const shakeInterval = setInterval(() => {
+                                            prisoner.style.transform = `translate(-50%, -50%) rotate(${Math.random() * 20 - 10}deg) scale(2.2)`;
+
+                                            // Shake the bars too
+                                            bars.style.transform = `translateX(${Math.random() * 10 - 5}px)`;
+
+                                            shakeCount++;
+                                            if (shakeCount > 15) {
+                                                clearInterval(shakeInterval);
+                                                prisoner.style.transform = 'translate(-50%, -50%) scale(2)';
+                                                bars.style.transform = 'translateX(0)';
+                                            }
+                                        }, 100);
+
+                                        // BARS BEND AND BREAK!
+                                        setTimeout(() => {
+                                            // Bend the center bars
+                                            const barElements = bars.querySelectorAll('.jail-bar');
+                                            barElements[3].style.transform = 'scaleX(1.3) translateX(20px)';
+                                            barElements[3].style.transition = 'all 0.5s';
+                                            barElements[4].style.transform = 'scaleX(1.3) translateX(-20px)';
+                                            barElements[4].style.transition = 'all 0.5s';
+
+                                            playJailDoorSlam();
+
+                                            setTimeout(() => {
+                                                // Bars snap!
+                                                barElements[3].style.opacity = '0';
+                                                barElements[4].style.opacity = '0';
+                                                playJailDoorSlam();
+
+                                                // Prisoner escapes through the gap!
+                                                setTimeout(() => {
+                                                    prisoner.style.transition = 'all 1s ease-out, transform 0s';
+                                                    prisoner.style.left = '150%';
+                                                    prisoner.style.transform = 'translate(-50%, -50%) scale(2)';
+                                                    prisoner.classList.add('walking');
+
+                                                    warning.remove();
+
+                                                    // CLICK THE LETTER TO TRAP THE BAD GUY!
+                                                    const currentLetter = letters[currentLetterIndex];
+
+                                                    const chase = document.createElement('div');
+                                                    chase.textContent = language === 'en' ? '👆 CLICK THE LETTER TO TRAP HIM! 👆' : '👆 ¡HAZ CLIC EN LA LETRA PARA ATRAPARLO! 👆';
+                                                    chase.style.position = 'fixed';
+                                                    chase.style.left = '50%';
+                                                    chase.style.top = '10%';
+                                                    chase.style.transform = 'translate(-50%, 0)';
+                                                    chase.style.fontSize = '60px';
+                                                    chase.style.fontWeight = 'bold';
+                                                    chase.style.color = '#FFFFFF';
+                                                    chase.style.textShadow = '0 0 30px #FF0000, 6px 6px 12px black';
+                                                    chase.style.zIndex = '850';
+                                                    chase.style.background = 'rgba(255, 0, 0, 0.95)';
+                                                    chase.style.padding = '30px 50px';
+                                                    chase.style.borderRadius = '30px';
+                                                    chase.style.border = '10px solid #FFD700';
+                                                    chase.style.animation = 'flicker 0.5s infinite';
+                                                    document.body.appendChild(chase);
+
+                                                    // GIANT CLICKABLE LETTER!
+                                                    const letterButton = document.createElement('div');
+                                                    letterButton.textContent = currentLetter;
+                                                    letterButton.style.position = 'fixed';
+                                                    letterButton.style.left = '50%';
+                                                    letterButton.style.top = '35%';
+                                                    letterButton.style.transform = 'translate(-50%, -50%)';
+                                                    letterButton.style.fontSize = '250px';
+                                                    letterButton.style.fontWeight = 'bold';
+                                                    letterButton.style.color = '#FFD700';
+                                                    letterButton.style.textShadow = '0 0 50px #FFD700, 0 0 100px #FFA500, 12px 12px 24px black';
+                                                    letterButton.style.zIndex = '851';
+                                                    letterButton.style.background = 'rgba(0, 200, 0, 0.95)';
+                                                    letterButton.style.padding = '60px 100px';
+                                                    letterButton.style.borderRadius = '60px';
+                                                    letterButton.style.border = '20px solid #FFD700';
+                                                    letterButton.style.cursor = 'pointer';
+                                                    letterButton.style.animation = 'celebrate 0.8s infinite';
+                                                    document.body.appendChild(letterButton);
+
+                                                    // Add giant arrow pointing to letter
+                                                    const arrow = document.createElement('div');
+                                                    arrow.textContent = '⬇️⬇️⬇️';
+                                                    arrow.style.position = 'fixed';
+                                                    arrow.style.left = '50%';
+                                                    arrow.style.top = '60%';
+                                                    arrow.style.transform = 'translateX(-50%)';
+                                                    arrow.style.fontSize = '120px';
+                                                    arrow.style.zIndex = '850';
+                                                    arrow.style.animation = 'celebrate 0.8s infinite';
+                                                    document.body.appendChild(arrow);
+
+                                                    // Make prisoner keep walking (no highlighting, we click the letter!)
+                                                    prisoner.style.cursor = 'default';
+
+                                                    let helicopterSequenceStarted = false;
+
+                                                    // When letter is clicked, announce it and trap the bad guy!
+                                                    letterButton.addEventListener('click', function() {
+                                                        if (helicopterSequenceStarted) return;
+                                                        helicopterSequenceStarted = true;
+
+                                                        // Announce the letter!
+                                                        speak(currentLetter, language);
+
+                                                        // Show big letter popup briefly
+                                                        const bigLetter = document.createElement('div');
+                                                        bigLetter.textContent = currentLetter;
+                                                        bigLetter.style.position = 'fixed';
+                                                        bigLetter.style.left = '50%';
+                                                        bigLetter.style.top = '50%';
+                                                        bigLetter.style.transform = 'translate(-50%, -50%)';
+                                                        bigLetter.style.fontSize = '300px';
+                                                        bigLetter.style.fontWeight = 'bold';
+                                                        bigLetter.style.color = '#FFD700';
+                                                        bigLetter.style.textShadow = '0 0 60px #FFD700, 0 0 120px #FFA500, 12px 12px 24px black';
+                                                        bigLetter.style.zIndex = '1000';
+                                                        bigLetter.style.animation = 'celebrate 0.8s';
+                                                        bigLetter.style.pointerEvents = 'none';
+                                                        document.body.appendChild(bigLetter);
+
+                                                        setTimeout(() => bigLetter.remove(), 800);
+
+                                                        chase.remove();
+                                                        arrow.remove();
+                                                        letterButton.remove();
+
+                                                        // HELICOPTER RESCUE ATTEMPT!
+                                                        const escapeMsg = document.createElement('div');
+                                                        escapeMsg.textContent = language === 'en' ? '🚁 BAD GUY ESCAPES IN HELICOPTER! 🚁' : '🚁 ¡EL VILLANO ESCAPA EN HELICÓPTERO! 🚁';
+                                                        escapeMsg.style.position = 'fixed';
+                                                        escapeMsg.style.left = '50%';
+                                                        escapeMsg.style.top = '10%';
+                                                        escapeMsg.style.transform = 'translateX(-50%)';
+                                                        escapeMsg.style.fontSize = '60px';
+                                                        escapeMsg.style.fontWeight = 'bold';
+                                                        escapeMsg.style.color = '#FFD700';
+                                                        escapeMsg.style.textShadow = '4px 4px 8px black';
+                                                        escapeMsg.style.background = 'rgba(255, 100, 0, 0.95)';
+                                                        escapeMsg.style.padding = '25px 40px';
+                                                        escapeMsg.style.borderRadius = '25px';
+                                                        escapeMsg.style.border = '6px solid #FFD700';
+                                                        escapeMsg.style.zIndex = '900';
+                                                        escapeMsg.style.animation = 'celebrate 1s infinite';
+                                                        document.body.appendChild(escapeMsg);
+
+                                                        const helicopter = document.createElement('div');
+                                                        helicopter.textContent = '🚁';
+                                                        helicopter.style.position = 'fixed';
+                                                        helicopter.style.fontSize = '180px';
+                                                        helicopter.style.left = (window.innerWidth + 200) + 'px';
+                                                        helicopter.style.top = '20%';
+                                                        helicopter.style.zIndex = '850';
+                                                        helicopter.style.transition = 'all 1.5s ease-out';
+                                                        document.body.appendChild(helicopter);
+
+                                                        playPlaneSound();
+
+                                                        setTimeout(() => {
+                                                            helicopter.style.left = '50%';
+                                                            helicopter.style.transform = 'translateX(-50%)';
+                                                        }, 100);
+
+                                                        // Bad guy jumps UP into helicopter!
+                                                        setTimeout(() => {
+                                                            // Show he's flying UP!
+                                                            escapeMsg.textContent = language === 'en' ? '⬆️ FLYING UP! ⬆️' : '⬆️ ¡VOLANDO ARRIBA! ⬆️';
+
+                                                            // Make him fly UP to helicopter!
+                                                            prisoner.style.transition = 'all 1.2s ease-out';
+                                                            prisoner.style.position = 'fixed';
+                                                            prisoner.style.left = '50%';
+                                                            prisoner.style.top = '25%'; // Fly UP to helicopter height
+                                                            prisoner.style.bottom = 'auto';
+                                                            prisoner.style.transform = 'translateX(-50%) scale(2)';
+                                                            prisoner.style.opacity = '0.7';
+
+                                                            // Final fade into helicopter
+                                                            setTimeout(() => {
+                                                                prisoner.style.top = '20%';
+                                                                prisoner.style.opacity = '0';
+                                                            }, 600);
+                                                        }, 1500);
+
+                                                        // OH NO! HELICOPTER CATCHES FIRE!
+                                                        setTimeout(() => {
+                                                            escapeMsg.remove();
+
+                                                            const heliAlert = document.createElement('div');
+                                                            heliAlert.textContent = language === 'en' ? '🔥 HELICOPTER ON FIRE! 🔥' : '🔥 ¡HELICÓPTERO EN LLAMAS! 🔥';
+                                                            heliAlert.style.position = 'fixed';
+                                                            heliAlert.style.left = '50%';
+                                                            heliAlert.style.top = '60%';
+                                                            heliAlert.style.transform = 'translateX(-50%)';
+                                                            heliAlert.style.fontSize = '60px';
+                                                            heliAlert.style.fontWeight = 'bold';
+                                                            heliAlert.style.color = '#FFF';
+                                                            heliAlert.style.textShadow = '4px 4px 8px black';
+                                                            heliAlert.style.background = 'rgba(255, 69, 0, 0.95)';
+                                                            heliAlert.style.padding = '30px 50px';
+                                                            heliAlert.style.borderRadius = '25px';
+                                                            heliAlert.style.border = '6px solid #FFD700';
+                                                            heliAlert.style.zIndex = '900';
+                                                            heliAlert.style.animation = 'flicker 0.3s infinite';
+                                                            document.body.appendChild(heliAlert);
+
+                                                            // Add fire to helicopter
+                                                            const fire = document.createElement('div');
+                                                            fire.textContent = '🔥🔥🔥';
+                                                            fire.style.position = 'fixed';
+                                                            fire.style.fontSize = '120px';
+                                                            fire.style.left = '50%';
+                                                            fire.style.top = '22%';
+                                                            fire.style.transform = 'translateX(-50%)';
+                                                            fire.style.zIndex = '851';
+                                                            fire.style.animation = 'flicker 0.3s infinite';
+                                                            document.body.appendChild(fire);
+
+                                                            playSirenSound();
+
+                                                            // MAGIC HAPPENS!
+                                                            setTimeout(() => {
+                                                                heliAlert.textContent = language === 'en' ? '✨ MAGIC! ✨' : '✨ ¡MAGIA! ✨';
+                                                                heliAlert.style.background = 'rgba(138, 43, 226, 0.95)';
+                                                                heliAlert.style.animation = 'celebrate 0.5s infinite';
+
+                                                                // Create magic sparkles everywhere!
+                                                                for (let i = 0; i < 20; i++) {
+                                                                    setTimeout(() => {
+                                                                        const sparkle = document.createElement('div');
+                                                                        sparkle.className = 'magic-sparkle';
+                                                                        sparkle.textContent = ['✨', '⭐', '💫', '🌟'][Math.floor(Math.random() * 4)];
+                                                                        sparkle.style.left = (Math.random() * window.innerWidth) + 'px';
+                                                                        sparkle.style.top = (Math.random() * window.innerHeight) + 'px';
+                                                                        document.body.appendChild(sparkle);
+                                                                        setTimeout(() => sparkle.remove(), 1000);
+                                                                    }, i * 40);
+                                                                }
+
+                                                                playSuperSonicTransform();
+                                                                setTimeout(playCelebrationSound, 200);
+                                                                setTimeout(playCelebrationSound, 400);
+
+                                                                // Everything disappears!
+                                                                setTimeout(() => {
+                                                                    helicopter.style.opacity = '0';
+                                                                    fire.style.opacity = '0';
+                                                                    prisoner.style.opacity = '0';
+                                                                    heliAlert.style.opacity = '0';
+                                                                    jailScene.style.opacity = '0';
+
+                                                                    // TRANSPORT TO BAT CAVE!
+                                                                    setTimeout(() => {
+                                                                        helicopter.remove();
+                                                                        fire.remove();
+                                                                        prisoner.remove();
+                                                                        heliAlert.remove();
+                                                                        jailScene.remove();
+
+                                                                        showBatCave(sceneBackground);
+                                                                    }, 800);
+                                                                }, 800);
+                                                            }, 1500);
+                                                        }, 1800);
+                                                    });
+
+                                                    setTimeout(playSirenSound, 200);
+                                                    setTimeout(playSirenSound, 600);
+
+                                                    // Auto-continue if not clicked after 8 seconds
+                                                    setTimeout(() => {
+                                                        if (!helicopterSequenceStarted) {
+                                                            chase.remove();
+                                                            arrow.remove();
+                                                            prisoner.remove();
+                                                            jailScene.remove();
+                                                            sceneBackground.classList.remove('active');
+                                                            setTimeout(() => {
+                                                                sceneBackground.remove();
+                                                                gameActive = true;
+                                                                // Restart music if it was enabled
+                                                                if (wasEnabled) {
+                                                                    musicEnabled = true;
+                                                                    musicButton.textContent = 'Music 🎵 ON';
+                                                                    playBackgroundMusic();
+                                                                }
+                                                            }, 1000);
+                                                        }
+                                                    }, 8000);
+                                                }, 500);
+                                            }, 800);
+                                        }, 2000);
+                                    }, 2500);
+                                }, 2500);
+                            }, 1200);
+                        }, 1500);
+                    }, 1500);
+                }, 1000);
+            }, 1000);
+        }
+
+        function playTriumphantMusic() {
+            // Victory fanfare!
+            const victoryNotes = [
+                { freq: 523, duration: 0.2 }, // C
+                { freq: 659, duration: 0.2 }, // E
+                { freq: 784, duration: 0.2 }, // G
+                { freq: 1047, duration: 0.4 }, // High C
+                { freq: 784, duration: 0.2 }, // G
+                { freq: 1047, duration: 0.6 }, // High C (hold)
+            ];
+
+            let currentTime = audioContext.currentTime;
+
+            victoryNotes.forEach((note) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(note.freq, currentTime);
+                gainNode.gain.setValueAtTime(0.25, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + note.duration);
+
+                currentTime += note.duration;
+            });
+        }
+
+        function finishPlaneFire(rescuePlane, burningPlane, letter, fireOnPlane, centerX, centerY) {
+            // Continue with original plane rescue
+            playWaterSound();
+
+            // Spray water on burning plane
+            for (let i = 0; i < 15; i++) {
+                setTimeout(() => {
+                    const waterSpray = document.createElement('div');
+                    waterSpray.textContent = '💦💦';
+                    waterSpray.style.position = 'absolute';
+                    waterSpray.style.fontSize = '60px';
+                    waterSpray.style.left = (centerX - 20 + Math.random() * 80) + 'px';
+                    waterSpray.style.top = (centerY - 20 + Math.random() * 60) + 'px';
+                    waterSpray.style.animation = 'splash 0.6s forwards';
+                    waterSpray.style.zIndex = '98';
+                    gameContainer.appendChild(waterSpray);
+
+                    setTimeout(() => waterSpray.remove(), 600);
+                }, i * 120);
+            }
+
+            // Put out plane fire
+            setTimeout(() => {
+                if (fireOnPlane) {
+                    fireOnPlane.querySelector('.fire-emoji').textContent = '🔥🔥';
+                }
+            }, 600);
+
+            setTimeout(() => {
+                if (fireOnPlane) {
+                    fireOnPlane.querySelector('.fire-emoji').textContent = '🔥';
+                }
+            }, 1200);
+
+            setTimeout(() => {
+                if (fireOnPlane) {
+                    fireOnPlane.querySelector('.fire-emoji').textContent = '💨';
+                }
+            }, 1800);
+
+            setTimeout(() => {
+                if (fireOnPlane) {
+                    fireOnPlane.style.opacity = '0';
+                }
+
+                // Update score
+                score++;
+                scoreDisplay.textContent = score;
+                localStorage.setItem("kidgames_stars", score);
+
+                // Both planes fly away!
+                setTimeout(() => {
+                    rescuePlane.style.transition = 'left 3s linear, top 2s ease-in';
+                    rescuePlane.style.left = (window.innerWidth + 300) + 'px';
+                    rescuePlane.style.top = '50px';
+
+                    burningPlane.style.transition = 'left 3s linear, top 2s ease-in';
+                    burningPlane.style.left = (window.innerWidth + 300) + 'px';
+                    burningPlane.style.top = '100px';
+
+                    setTimeout(() => {
+                        rescuePlane.remove();
+                        burningPlane.remove();
+                    }, 3200);
+                }, 500);
+
+                // Next letter
+                currentLetterIndex++;
+                waitingForLetter = true;
+                updateNextLetter();
+                setTimeout(createFire, 2500);
+            }, 2200);
+        }
+
+        function rescueBurningPlane(burningPlane, letter, planeY) {
+            // Stop the burning plane in the CENTER of screen
+            burningPlane.style.transition = 'all 1s ease-out';
+            const centerX = window.innerWidth / 2 - 75;
+            const centerY = window.innerHeight / 2 - 100;
+            burningPlane.style.left = centerX + 'px';
+            burningPlane.style.top = centerY + 'px';
+
+            // Get the fire element on the plane
+            const fireOnPlane = burningPlane.querySelector('.fire');
+
+            // Create rescue helicopter flying in from right
+            const rescuePlane = document.createElement('div');
+            rescuePlane.className = 'plane';
+            rescuePlane.textContent = '🚁'; // Helicopter to the rescue!
+            rescuePlane.style.fontSize = '250px';
+            rescuePlane.style.cursor = 'pointer';
+            rescuePlane.style.left = (window.innerWidth + 200) + 'px';
+            rescuePlane.style.top = (centerY - 80) + 'px';
+            rescuePlane.style.filter = 'drop-shadow(0 0 20px rgba(255, 200, 0, 0.8))';
+            gameContainer.appendChild(rescuePlane);
+
+            // Play helicopter sound
+            playPlaneSound();
+
+            let helicopterClicked = false;
+
+            // Make helicopter clickable for DRAMATIC CRASH!
+            rescuePlane.addEventListener('click', function() {
+                if (helicopterClicked) return; // Only crash once
+                helicopterClicked = true;
+
+                // OH NO! HELICOPTER CATCHES FIRE!
+                const heliFireAlert = document.createElement('div');
+                heliFireAlert.textContent = language === 'en' ? '⚠️ OH NO! HELICOPTER ON FIRE! ⚠️' : '⚠️ ¡OH NO! ¡HELICÓPTERO EN LLAMAS! ⚠️';
+                heliFireAlert.style.position = 'absolute';
+                heliFireAlert.style.left = '50%';
+                heliFireAlert.style.top = '30px';
+                heliFireAlert.style.transform = 'translateX(-50%)';
+                heliFireAlert.style.fontSize = '55px';
+                heliFireAlert.style.fontWeight = 'bold';
+                heliFireAlert.style.color = '#FFFFFF';
+                heliFireAlert.style.textShadow = '5px 5px 10px rgba(0,0,0,0.9)';
+                heliFireAlert.style.background = 'rgba(255, 0, 0, 0.95)';
+                heliFireAlert.style.padding = '25px 45px';
+                heliFireAlert.style.borderRadius = '25px';
+                heliFireAlert.style.border = '6px solid #FFD700';
+                heliFireAlert.style.zIndex = '250';
+                heliFireAlert.style.animation = 'flicker 0.3s infinite';
+                gameContainer.appendChild(heliFireAlert);
+
+                // Add fire to helicopter
+                const heliCrashFire = document.createElement('div');
+                heliCrashFire.textContent = '🔥🔥🔥';
+                heliCrashFire.style.position = 'absolute';
+                heliCrashFire.style.fontSize = '100px';
+                heliCrashFire.style.left = '50%';
+                heliCrashFire.style.top = '-50px';
+                heliCrashFire.style.transform = 'translateX(-50%)';
+                heliCrashFire.style.animation = 'flicker 0.3s infinite';
+                heliCrashFire.style.zIndex = '101';
+                rescuePlane.appendChild(heliCrashFire);
+
+                // Play siren sound - emergency!
+                playSirenSound();
+
+                // Helicopter spins wildly and CRASHES!
+                rescuePlane.style.transition = 'all 2s ease-in';
+                rescuePlane.style.transform = 'rotate(720deg)';
+                rescuePlane.style.left = (centerX + 50) + 'px';
+                rescuePlane.style.top = (window.innerHeight - 300) + 'px'; // Crash to ground!
+
+                setTimeout(() => {
+                    heliFireAlert.remove();
+
+                    // CALL THE FIRETRUCK TO RESCUE!
+                    rescueCrashedHelicopter(rescuePlane, heliCrashFire, centerX, centerY, burningPlane, letter, fireOnPlane);
+                }, 2200);
+            });
+
+            // Fly rescue helicopter to burning plane (center of screen)
+            setTimeout(() => {
+                rescuePlane.style.transition = 'left 1.5s ease-out';
+                rescuePlane.style.left = (centerX - 200) + 'px';
+            }, 200);
+
+            // Show text prompt to click helicopter - make it URGENT!
+            setTimeout(() => {
+                const prompt = document.createElement('div');
+                prompt.textContent = language === 'en' ? '👆 CLICK THE HELICOPTER! 👆' : '👆 ¡HAZ CLIC EN EL HELICÓPTERO! 👆';
+                prompt.style.position = 'absolute';
+                prompt.style.left = '50%';
+                prompt.style.top = '120px';
+                prompt.style.transform = 'translateX(-50%)';
+                prompt.style.fontSize = '55px';
+                prompt.style.fontWeight = 'bold';
+                prompt.style.color = '#000000';
+                prompt.style.textShadow = '3px 3px 6px rgba(255,255,255,0.8)';
+                prompt.style.background = 'rgba(255, 255, 0, 0.98)';
+                prompt.style.padding = '30px 50px';
+                prompt.style.borderRadius = '30px';
+                prompt.style.border = '8px solid #FF0000';
+                prompt.style.zIndex = '250';
+                prompt.style.animation = 'celebrate 0.5s infinite';
+                gameContainer.appendChild(prompt);
+
+                // Remove prompt after helicopter is clicked or 10 seconds
+                const checkRemove = setInterval(() => {
+                    if (helicopterClicked || !prompt.parentNode) {
+                        clearInterval(checkRemove);
+                        if (prompt.parentNode) {
+                            prompt.remove();
+                        }
+                    }
+                }, 100);
+
+                setTimeout(() => {
+                    if (prompt.parentNode) {
+                        prompt.remove();
+                        clearInterval(checkRemove);
+                    }
+                }, 10000);
+            }, 300);
+        }
+
+        function callPlane(building, letter, fireX, fireY) {
+            // Create plane flying in from left
+            const plane = document.createElement('div');
+            plane.className = 'plane';
+            plane.textContent = '✈️';
+            plane.style.left = '-200px';
+            plane.style.top = '100px';
+            gameContainer.appendChild(plane);
+
+            // Play plane sound
+            playPlaneSound();
+
+            // Fly plane across
+            setTimeout(() => {
+                plane.style.left = fireX + 'px';
+                plane.style.top = (fireY - 100) + 'px';
+            }, 100);
+
+            // Drop water bomb when plane is over fire
+            setTimeout(() => {
+                // Drop massive water
+                for (let i = 0; i < 10; i++) {
+                    setTimeout(() => {
+                        const waterBomb = document.createElement('div');
+                        waterBomb.className = 'water-bomb';
+                        waterBomb.textContent = '💧💧💧';
+                        waterBomb.style.left = (fireX - 50 + Math.random() * 100) + 'px';
+                        waterBomb.style.top = (fireY - 80) + 'px';
+                        gameContainer.appendChild(waterBomb);
+
+                        setTimeout(() => waterBomb.remove(), 1500);
+                    }, i * 100);
+                }
+
+                playWaterSound();
+                setTimeout(playWaterSound, 400);
+
+                // Drop parachute rescuer from TOP of screen - MAKE IT CLICKABLE!
+                setTimeout(() => {
+                    const parachute = document.createElement('div');
+                    parachute.className = 'parachute';
+                    parachute.textContent = '🪂';
+                    parachute.style.left = (fireX + 50) + 'px';
+                    parachute.style.top = '-200px'; // Start from above the screen
+                    gameContainer.appendChild(parachute);
+
+                    let parachuteClicked = false;
+
+                    // Make parachute clickable for ADVENTURE!
+                    parachute.addEventListener('click', function() {
+                        if (parachuteClicked) return;
+                        parachuteClicked = true;
+
+                        // Stop falling animation
+                        parachute.style.animation = 'none';
+                        const currentRect = parachute.getBoundingClientRect();
+
+                        // Land smoothly
+                        parachute.style.transition = 'top 1s ease-out';
+                        parachute.style.top = (window.innerHeight - 350) + 'px';
+
+                        setTimeout(() => {
+                            // Parachute disappears, person appears!
+                            parachute.style.opacity = '0';
+
+                            const rescuer = document.createElement('div');
+                            rescuer.textContent = '🧑';
+                            rescuer.style.position = 'absolute';
+                            rescuer.style.fontSize = '70px';
+                            rescuer.style.left = currentRect.left + 'px';
+                            rescuer.style.top = (window.innerHeight - 350) + 'px';
+                            rescuer.style.zIndex = '250';
+                            rescuer.style.transition = 'all 1s ease-out';
+                            gameContainer.appendChild(rescuer);
+
+                            setTimeout(() => {
+                                parachute.remove();
+
+                                // Start the ADVENTURE! (same as clicking person in window)
+                                parachuteAdventure(rescuer);
+                            }, 500);
+                        }, 1200);
+                    });
+
+                    // Auto-remove if not clicked
+                    setTimeout(() => {
+                        if (!parachuteClicked && parachute.parentNode) {
+                            parachute.remove();
+                        }
+                    }, 4500);
+                }, 500);
+
+                // Big splash and fire out
+                setTimeout(() => {
+                    const splash = document.createElement('div');
+                    splash.className = 'water-splash';
+                    splash.textContent = '💦💦💦💦💦💦💦';
+                    splash.style.left = fireX + 'px';
+                    splash.style.top = fireY + 'px';
+                    splash.style.fontSize = '120px';
+                    gameContainer.appendChild(splash);
+
+                    setTimeout(() => splash.remove(), 600);
+
+                    // Remove building
+                    building.remove();
+
+                    // Update score
+                    score++;
+                    scoreDisplay.textContent = score;
+                    localStorage.setItem("kidgames_stars", score);
+
+                    // Celebration
+                    showCelebration(fireX + 'px', fireY + 'px');
+                    playCelebrationSound();
+
+                    // Plane flies away
+                    setTimeout(() => {
+                        plane.style.left = (window.innerWidth + 200) + 'px';
+                        plane.style.top = '80px';
+
+                        setTimeout(() => plane.remove(), 2000);
+                    }, 500);
+
+                    // Next letter
+                    currentLetterIndex++;
+                    waitingForLetter = true;
+                    updateNextLetter();
+                    setTimeout(createFire, 3000);
+                }, 1200);
+            }, 2000);
+        }
+
+        function putOutFire(building, letter, fireX, fireY) {
+            const firetruck = document.getElementById('firetruck');
+            const boy = document.getElementById('firefighter-boy');
+            firetruck.classList.add('driving');
+            boy.classList.add('boy-driving');
+
+            // Play siren while driving
+            playSirenSound();
+
+            // AMBULANCE ARRIVES TOO!
+            const ambulance = document.createElement('div');
+            ambulance.className = 'ambulance';
+            ambulance.textContent = '🚑';
+            ambulance.style.left = '-200px';
+            ambulance.style.bottom = '180px';
+            gameContainer.appendChild(ambulance);
+
+            // Play ambulance siren (different sound!)
+            setTimeout(() => {
+                playAmbulanceSiren();
+            }, 300);
+
+            // Zoom firetruck AND boy to the fire
+            firetruck.style.left = fireX + 'px';
+            firetruck.style.bottom = '180px';
+            boy.style.left = fireX + 'px';
+            boy.style.bottom = '200px';
+
+            // Ambulance drives to scene too
+            setTimeout(() => {
+                ambulance.style.left = (fireX - 200) + 'px';
+            }, 100);
+
+            // Create injured people who need help!
+            const injuredPeople = [];
+            for (let i = 0; i < 2; i++) {
+                const injured = document.createElement('div');
+                injured.className = 'injured-person';
+                injured.textContent = '🤕';
+                injured.style.left = (fireX + 150 + (i * 60)) + 'px';
+                injured.style.bottom = '180px';
+                gameContainer.appendChild(injured);
+                injuredPeople.push(injured);
+            }
+
+            // After truck arrives, firemen come out
+            setTimeout(() => {
+                // Create 3 firemen jumping out
+                const firemen = [];
+                for (let i = 0; i < 3; i++) {
+                    const fireman = document.createElement('div');
+                    fireman.className = 'fireman';
+                    fireman.textContent = '🧑‍🚒';
+                    fireman.style.left = fireX + 'px';
+                    fireman.style.bottom = '180px';
+                    gameContainer.appendChild(fireman);
+                    firemen.push(fireman);
+
+                    // Firemen run to the building
+                    setTimeout(() => {
+                        fireman.style.left = (fireX + (i * 50) - 50) + 'px';
+                        fireman.style.bottom = '180px';
+                    }, 100);
+                }
+
+                // Spray water!
+                setTimeout(() => {
+                    playWaterSound();
+
+                    // Create multiple water streams from firemen
+                    for (let i = 0; i < 8; i++) {
+                        setTimeout(() => {
+                            const stream = document.createElement('div');
+                            stream.className = 'water-stream';
+                            stream.textContent = '💦💦💦';
+                            stream.style.left = (fireX - 30 + Math.random() * 80) + 'px';
+                            stream.style.top = (fireY + Math.random() * 100) + 'px';
+                            gameContainer.appendChild(stream);
+
+                            setTimeout(() => stream.remove(), 500);
+                        }, i * 80);
+                    }
+
+                    // Create huge splash on fire
+                    setTimeout(() => {
+                        const splash = document.createElement('div');
+                        splash.className = 'water-splash';
+                        splash.textContent = '💦💦💦💦💦';
+                        splash.style.left = fireX + 'px';
+                        splash.style.top = fireY + 'px';
+                        gameContainer.appendChild(splash);
+
+                        setTimeout(() => splash.remove(), 600);
+
+                        // Remove building (fire is out!)
+                        building.remove();
+
+                        // Update score
+                        score++;
+                        scoreDisplay.textContent = score;
+                        localStorage.setItem("kidgames_stars", score);
+
+                        // Celebration
+                        showCelebration(fireX + 'px', fireY + 'px');
+                        playCelebrationSound();
+
+                        // SONIC THE HEDGEHOG ARRIVES TO HELP!
+                        setTimeout(() => {
+                            const centerX = window.innerWidth / 2 - 70;
+                            const centerY = window.innerHeight / 2;
+
+                            // Show what letter we just learned!
+                            const letterCelebration = document.createElement('div');
+                            letterCelebration.textContent = `✨ ${letters[currentLetterIndex]} ✨`;
+                            letterCelebration.style.position = 'fixed';
+                            letterCelebration.style.left = '50%';
+                            letterCelebration.style.top = '30px';
+                            letterCelebration.style.transform = 'translateX(-50%)';
+                            letterCelebration.style.fontSize = '100px';
+                            letterCelebration.style.fontWeight = 'bold';
+                            letterCelebration.style.color = '#FFD700';
+                            letterCelebration.style.textShadow = '0 0 30px #FFD700, 5px 5px 10px black';
+                            letterCelebration.style.background = 'rgba(0, 200, 0, 0.9)';
+                            letterCelebration.style.padding = '20px 50px';
+                            letterCelebration.style.borderRadius = '30px';
+                            letterCelebration.style.border = '8px solid #FFD700';
+                            letterCelebration.style.zIndex = '1000';
+                            letterCelebration.style.animation = 'celebrate 1s infinite';
+                            gameContainer.appendChild(letterCelebration);
+
+                            // Announcement for Sonic!
+                            const sonicAlert = document.createElement('div');
+                            sonicAlert.textContent = language === 'en' ? '💙 SONIC IS HERE! 💙' : '💙 ¡LLEGÓ SONIC! 💙';
+                            sonicAlert.style.position = 'fixed';
+                            sonicAlert.style.left = '50%';
+                            sonicAlert.style.top = '150px';
+                            sonicAlert.style.transform = 'translateX(-50%)';
+                            sonicAlert.style.fontSize = '60px';
+                            sonicAlert.style.fontWeight = 'bold';
+                            sonicAlert.style.color = '#FFFFFF';
+                            sonicAlert.style.textShadow = '4px 4px 8px rgba(0,0,0,0.9)';
+                            sonicAlert.style.background = 'rgba(0, 100, 255, 0.95)';
+                            sonicAlert.style.padding = '30px 60px';
+                            sonicAlert.style.borderRadius = '30px';
+                            sonicAlert.style.border = '8px solid #FFD700';
+                            sonicAlert.style.zIndex = '1000';
+                            sonicAlert.style.animation = 'celebrate 1s';
+                            gameContainer.appendChild(sonicAlert);
+
+                            playSonicSound();
+
+                            // Sonic says positive affirmation!
+                            setTimeout(() => {
+                                const affirmation = letterAffirmations[language][letters[currentLetterIndex]];
+                                speak(affirmation, language);
+                            }, 300);
+
+                            setTimeout(() => {
+                                sonicAlert.remove();
+                                letterCelebration.remove();
+                            }, 2000);
+
+                            const sonic = document.createElement('div');
+                            sonic.className = 'sonic running';
+                            sonic.style.left = '-200px';
+                            sonic.style.bottom = (centerY - 100) + 'px';
+                            sonic.style.position = 'fixed';
+                            sonic.style.zIndex = '900';
+
+                            // Build Sonic's body!
+                            sonic.innerHTML = `
+                                <div class="sonic-speed-lines">💨💨💨</div>
+                                <div class="sonic-body">
+                                    <div class="sonic-head">
+                                        <div class="sonic-spike sonic-spike1"></div>
+                                        <div class="sonic-spike sonic-spike2"></div>
+                                        <div class="sonic-spike sonic-spike3"></div>
+                                        <div class="sonic-spike sonic-spike4"></div>
+                                        <div class="sonic-spike sonic-spike5"></div>
+                                        <div class="sonic-eyes">
+                                            <div class="sonic-pupil sonic-pupil-left">
+                                                <div class="sonic-eye-glint"></div>
+                                            </div>
+                                            <div class="sonic-pupil sonic-pupil-right">
+                                                <div class="sonic-eye-glint"></div>
+                                            </div>
+                                        </div>
+                                        <div class="sonic-face"></div>
+                                        <div class="sonic-nose"></div>
+                                        <div class="sonic-mouth"></div>
+                                    </div>
+                                    <div class="sonic-torso"></div>
+                                    <div class="sonic-belly"></div>
+                                    <div class="sonic-arm sonic-arm-left"></div>
+                                    <div class="sonic-arm sonic-arm-right"></div>
+                                    <div class="sonic-glove sonic-glove-left">
+                                        <div class="sonic-glove-cuff"></div>
+                                    </div>
+                                    <div class="sonic-glove sonic-glove-right">
+                                        <div class="sonic-glove-cuff"></div>
+                                    </div>
+                                    <div class="sonic-leg sonic-leg-left"></div>
+                                    <div class="sonic-leg sonic-leg-right"></div>
+                                    <div class="sonic-shoe sonic-shoe-left">
+                                        <div class="sonic-shoe-buckle"></div>
+                                        <div class="sonic-shoe-stripe"></div>
+                                        <div class="sonic-shoe-sole"></div>
+                                    </div>
+                                    <div class="sonic-shoe sonic-shoe-right">
+                                        <div class="sonic-shoe-buckle"></div>
+                                        <div class="sonic-shoe-stripe"></div>
+                                        <div class="sonic-shoe-sole"></div>
+                                    </div>
+                                </div>
+                            `;
+
+                            gameContainer.appendChild(sonic);
+
+                            // Sonic runs to CENTER STAGE!
+                            setTimeout(() => {
+                                sonic.style.transition = 'left 1.5s ease-out';
+                                sonic.style.left = centerX + 'px';
+
+                                // SUPER SONIC TRANSFORMATION BEGINS!
+                                setTimeout(() => {
+                                    sonic.classList.remove('running');
+
+                                    // Transformation announcement!
+                                    const transformText = document.createElement('div');
+                                    transformText.textContent = language === 'en' ? '⚡ SUPER SONIC! ⚡' : '⚡ ¡SÚPER SONIC! ⚡';
+                                    transformText.style.position = 'fixed';
+                                    transformText.style.left = '50%';
+                                    transformText.style.top = '200px';
+                                    transformText.style.transform = 'translateX(-50%)';
+                                    transformText.style.fontSize = '70px';
+                                    transformText.style.fontWeight = 'bold';
+                                    transformText.style.color = '#FFD700';
+                                    transformText.style.textShadow = '0 0 20px gold, 0 0 40px yellow, 4px 4px 8px black';
+                                    transformText.style.zIndex = '1001';
+                                    transformText.style.animation = 'celebrate 2s infinite';
+                                    gameContainer.appendChild(transformText);
+
+                                    // Shake the screen!
+                                    gameContainer.classList.add('screen-shake');
+                                    setTimeout(() => gameContainer.classList.remove('screen-shake'), 500);
+
+                                    // Create 7 Chaos Emeralds circling around Sonic!
+                                    const emeraldColors = ['🔴', '🟢', '🔵', '🟡', '🟣', '⚪', '🟠'];
+                                    const emeralds = [];
+
+                                    emeraldColors.forEach((color, index) => {
+                                        const emerald = document.createElement('div');
+                                        emerald.textContent = '💎';
+                                        emerald.style.position = 'fixed';
+                                        emerald.style.fontSize = '60px';
+                                        emerald.style.left = centerX + 'px';
+                                        emerald.style.bottom = (centerY - 100) + 'px';
+                                        emerald.style.zIndex = '899';
+                                        emerald.style.filter = `hue-rotate(${index * 51}deg)`;
+                                        emerald.style.animation = 'celebrate 0.3s infinite';
+                                        gameContainer.appendChild(emerald);
+                                        emeralds.push(emerald);
+
+                                        // Emeralds fly out in circle
+                                        setTimeout(() => {
+                                            const angle = (index / emeraldColors.length) * 2 * Math.PI;
+                                            const distance = 150;
+                                            emerald.style.transition = 'all 1s ease-out';
+                                            emerald.style.left = (centerX + Math.cos(angle) * distance) + 'px';
+                                            emerald.style.bottom = (centerY - 100 + Math.sin(angle) * distance) + 'px';
+                                        }, 100);
+                                    });
+
+                                    // Play transformation sound!
+                                    playSuperSonicTransform();
+
+                                    // Lightning strikes!
+                                    for (let i = 0; i < 6; i++) {
+                                        setTimeout(() => {
+                                            const lightning = document.createElement('div');
+                                            lightning.className = 'lightning';
+                                            lightning.textContent = '⚡';
+                                            lightning.style.position = 'fixed';
+                                            lightning.style.left = (centerX + Math.random() * 200 - 100) + 'px';
+                                            lightning.style.bottom = (centerY + Math.random() * 200 - 100) + 'px';
+                                            gameContainer.appendChild(lightning);
+                                            setTimeout(() => lightning.remove(), 600);
+                                        }, i * 100);
+                                    }
+
+                                    // Emeralds fly INTO Sonic! FASTER!
+                                    setTimeout(() => {
+                                        emeralds.forEach((emerald, index) => {
+                                            setTimeout(() => {
+                                                emerald.style.transition = 'all 0.3s ease-in';
+                                                emerald.style.left = centerX + 'px';
+                                                emerald.style.bottom = (centerY - 100) + 'px';
+                                                emerald.style.opacity = '0';
+                                                emerald.style.transform = 'scale(0)';
+                                                playSonicSound();
+                                                setTimeout(() => emerald.remove(), 300);
+                                            }, index * 100);
+                                        });
+                                    }, 600);
+
+                                    // TRANSFORM TO SUPER SONIC - GOLDEN!
+                                    setTimeout(() => {
+                                        sonic.classList.add('super-sonic');
+
+                                        // Change Sonic to golden color!
+                                        const sonicHead = sonic.querySelector('.sonic-head');
+                                        const sonicSpikes = sonic.querySelectorAll('.sonic-spike');
+                                        const sonicTorso = sonic.querySelector('.sonic-torso');
+                                        const sonicArms = sonic.querySelectorAll('.sonic-arm');
+                                        const sonicLegs = sonic.querySelectorAll('.sonic-leg');
+
+                                        [sonicHead, sonicTorso, ...sonicSpikes, ...sonicArms, ...sonicLegs].forEach(part => {
+                                            if (part) part.style.background = '#FFD700';
+                                        });
+
+                                        playCelebrationSound();
+                                        setTimeout(playCelebrationSound, 150);
+                                        setTimeout(playCelebrationSound, 300);
+
+                                        // Victory jump and spin! FASTER!
+                                        setTimeout(() => {
+                                            sonic.classList.remove('super-sonic');
+                                            sonic.classList.add('victory');
+                                            playSuperSonicTransform();
+
+                                            setTimeout(() => {
+                                                sonic.classList.remove('victory');
+                                                transformText.remove();
+
+                                                // Super Sonic helps everyone INSTANTLY with his power!
+                                                injuredPeople.forEach((person, index) => {
+                                                    setTimeout(() => {
+                                                        person.textContent = '😊';
+                                                        person.style.animation = 'none';
+                                                        person.style.transition = 'all 0.4s ease-out';
+                                                        person.style.left = (fireX - 200) + 'px';
+                                                        person.style.transform = 'scale(1.2)';
+                                                        playSonicSound();
+
+                                                        // Sparkles!
+                                                        const sparkle = document.createElement('div');
+                                                        sparkle.textContent = '✨';
+                                                        sparkle.style.position = 'absolute';
+                                                        sparkle.style.fontSize = '50px';
+                                                        sparkle.style.left = person.style.left;
+                                                        sparkle.style.bottom = person.style.bottom;
+                                                        sparkle.style.zIndex = '53';
+                                                        sparkle.style.animation = 'splash 0.6s forwards';
+                                                        gameContainer.appendChild(sparkle);
+                                                        setTimeout(() => sparkle.remove(), 600);
+
+                                                        setTimeout(() => {
+                                                            person.style.opacity = '0';
+                                                            setTimeout(() => person.remove(), 400);
+                                                        }, 400);
+                                                    }, index * 400);
+                                                });
+
+                                                // Final pose and exit! FASTER!
+                                                setTimeout(() => {
+                                                    // Thumbs up!
+                                                    const thumbsUp = document.createElement('div');
+                                                    thumbsUp.textContent = '👍';
+                                                    thumbsUp.style.position = 'absolute';
+                                                    thumbsUp.style.fontSize = '60px';
+                                                    thumbsUp.style.top = '20px';
+                                                    thumbsUp.style.right = '-50px';
+                                                    thumbsUp.style.animation = 'celebrate 0.5s infinite';
+                                                    thumbsUp.style.zIndex = '100';
+                                                    sonic.appendChild(thumbsUp);
+
+                                                    playCelebrationSound();
+
+                                                    setTimeout(() => {
+                                                        thumbsUp.remove();
+                                                        sonic.classList.add('running');
+                                                        sonic.style.transition = 'left 0.8s ease-in';
+                                                        sonic.style.left = (window.innerWidth + 300) + 'px';
+                                                        playSonicSpinSound();
+                                                        setTimeout(() => sonic.remove(), 900);
+                                                    }, 500);
+                                                }, 900);
+                                            }, 1200);
+                                        }, 1500);
+                                    }, 1400);
+                                }, 1500);
+                            }, 500);
+                        }, 1000);
+
+                        // Firemen return and truck goes back (wait for SUPER SONIC show!)
+                        setTimeout(() => {
+                            firemen.forEach((fireman, i) => {
+                                setTimeout(() => {
+                                    fireman.style.left = fireX + 'px';
+                                }, i * 100);
+                                setTimeout(() => fireman.remove(), 500);
+                            });
+
+                            setTimeout(() => {
+                                firetruck.style.left = '50%';
+                                firetruck.style.bottom = '110px';
+                                firetruck.classList.remove('driving');
+                                boy.style.left = '50%';
+                                boy.style.bottom = '130px';
+                                boy.classList.remove('boy-driving');
+
+                                // Ambulance leaves too!
+                                ambulance.style.transition = 'left 2s ease-in';
+                                ambulance.style.left = '-300px';
+                                setTimeout(() => ambulance.remove(), 2100);
+
+                                // Next letter
+                                currentLetterIndex++;
+                                waitingForLetter = true;
+                                updateNextLetter();
+                                setTimeout(createFire, 2000);
+                            }, 600);
+                        }, 9000);
+                    }, 400);
+                }, 600);
+
+            }, 500); // Wait for truck to arrive
+        }
+
+        function playSirenSound() {
+            // Realistic firetruck siren - smooth sweep WEE-OOO-WEE-OOO!
+            for (let i = 0; i < 2; i++) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                const startTime = audioContext.currentTime + (i * 0.6);
+
+                // Sweep up
+                oscillator.frequency.setValueAtTime(600, startTime);
+                oscillator.frequency.linearRampToValueAtTime(1000, startTime + 0.3);
+                // Sweep down
+                oscillator.frequency.linearRampToValueAtTime(600, startTime + 0.6);
+
+                gainNode.gain.setValueAtTime(0.4, startTime);
+                gainNode.gain.setValueAtTime(0.4, startTime + 0.5);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.6);
+            }
+        }
+
+        function playAmbulanceSiren() {
+            // Different ambulance siren - two tone NEE-NAW-NEE-NAW!
+            for (let i = 0; i < 3; i++) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = 'square';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                const startTime = audioContext.currentTime + (i * 0.4);
+
+                // Fast alternating tones
+                oscillator.frequency.setValueAtTime(800, startTime);
+                oscillator.frequency.setValueAtTime(650, startTime + 0.2);
+
+                gainNode.gain.setValueAtTime(0.35, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.4);
+            }
+        }
+
+        function playPlaneSound() {
+            // Airplane engine rumble - VRRRROOOOOMMMM
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = 'sawtooth';
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.setValueAtTime(120, audioContext.currentTime);
+            oscillator.frequency.linearRampToValueAtTime(150, audioContext.currentTime + 1);
+            oscillator.frequency.linearRampToValueAtTime(100, audioContext.currentTime + 2);
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.35, audioContext.currentTime + 1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 2);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 2);
+        }
+
+        function playJailDoorSlam() {
+            // LOUD METAL DOOR SLAM - CLANG!!!
+            // Create multiple sounds for realism
+
+            // Main slam impact
+            const noise = audioContext.createOscillator();
+            const noiseGain = audioContext.createGain();
+            noise.type = 'square';
+            noise.connect(noiseGain);
+            noiseGain.connect(audioContext.destination);
+
+            noise.frequency.setValueAtTime(80, audioContext.currentTime);
+            noise.frequency.exponentialRampToValueAtTime(40, audioContext.currentTime + 0.1);
+
+            noiseGain.gain.setValueAtTime(0.6, audioContext.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+            noise.start(audioContext.currentTime);
+            noise.stop(audioContext.currentTime + 0.3);
+
+            // Metal clang resonance
+            setTimeout(() => {
+                const clang = audioContext.createOscillator();
+                const clangGain = audioContext.createGain();
+                clang.type = 'triangle';
+                clang.connect(clangGain);
+                clangGain.connect(audioContext.destination);
+
+                clang.frequency.setValueAtTime(300, audioContext.currentTime);
+                clang.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.4);
+
+                clangGain.gain.setValueAtTime(0.5, audioContext.currentTime);
+                clangGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+
+                clang.start(audioContext.currentTime);
+                clang.stop(audioContext.currentTime + 0.4);
+            }, 50);
+
+            // Echo/reverb
+            setTimeout(() => {
+                const echo = audioContext.createOscillator();
+                const echoGain = audioContext.createGain();
+                echo.type = 'sine';
+                echo.connect(echoGain);
+                echoGain.connect(audioContext.destination);
+
+                echo.frequency.setValueAtTime(200, audioContext.currentTime);
+                echoGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                echoGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+
+                echo.start(audioContext.currentTime);
+                echo.stop(audioContext.currentTime + 0.6);
+            }, 100);
+        }
+
+        function playSonicSound() {
+            // Sonic's signature "RING!" collection sound - bright and happy
+            const ringSound = [
+                { freq: 1000, duration: 0.05 },
+                { freq: 1200, duration: 0.05 },
+                { freq: 1500, duration: 0.1 }
+            ];
+
+            let currentTime = audioContext.currentTime;
+
+            ringSound.forEach((note) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(note.freq, currentTime);
+                gainNode.gain.setValueAtTime(0.4, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + note.duration);
+
+                currentTime += note.duration;
+            });
+        }
+
+        function playSonicSpinSound() {
+            // Sonic's spin dash sound - whooshing sound
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = 'sawtooth';
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+        function playSuperSonicTransform() {
+            // EPIC transformation sound - power up!
+            const notes = [
+                { freq: 400, duration: 0.1 },
+                { freq: 500, duration: 0.1 },
+                { freq: 600, duration: 0.1 },
+                { freq: 800, duration: 0.1 },
+                { freq: 1000, duration: 0.15 },
+                { freq: 1200, duration: 0.15 },
+                { freq: 1500, duration: 0.3 }
+            ];
+
+            let currentTime = audioContext.currentTime;
+
+            notes.forEach((note) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = 'square';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(note.freq, currentTime);
+                gainNode.gain.setValueAtTime(0.4, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + note.duration);
+
+                currentTime += note.duration;
+            });
+        }
+
+        function playBatmanTheme() {
+            // ICONIC BATMAN THEME - "Na na na na na na na na BATMAN!"
+            // The classic Batman theme melody
+            const batmanNotes = [
+                // "Na na na na na na na na"
+                { freq: 349, duration: 0.2 },  // F
+                { freq: 349, duration: 0.2 },  // F
+                { freq: 349, duration: 0.2 },  // F
+                { freq: 349, duration: 0.2 },  // F
+                { freq: 349, duration: 0.2 },  // F
+                { freq: 349, duration: 0.2 },  // F
+                { freq: 349, duration: 0.2 },  // F
+                { freq: 349, duration: 0.2 },  // F
+                // "BATMAN!"
+                { freq: 466, duration: 0.4 },  // Bb
+                { freq: 523, duration: 0.4 },  // C
+                { freq: 466, duration: 0.6 }   // Bb (hold)
+            ];
+
+            let currentTime = audioContext.currentTime;
+
+            batmanNotes.forEach((note) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = 'square';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(note.freq, currentTime);
+                gainNode.gain.setValueAtTime(0.3, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + note.duration);
+
+                currentTime += note.duration;
+            });
+        }
+
+        function playDarkSound() {
+            // Mysterious, deep bass sound for bat cave atmosphere
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(60, audioContext.currentTime + 1);
+
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 1);
+        }
+
+        function showCelebration(x, y) {
+            const celebration = document.createElement('div');
+            celebration.className = 'celebration';
+            const messages = translations[language].celebrate;
+            celebration.textContent = messages[Math.floor(Math.random() * messages.length)] + ' ⭐';
+            celebration.style.left = x;
+            celebration.style.top = y;
+            gameContainer.appendChild(celebration);
+
+            setTimeout(() => celebration.remove(), 1000);
+        }
+
+        function showCompletion() {
+            const completion = document.createElement('div');
+            completion.className = 'celebration';
+            completion.textContent = translations[language].complete;
+            completion.style.fontSize = '60px';
+            gameContainer.appendChild(completion);
+
+            playCelebrationSound();
+            setTimeout(() => {
+                playCelebrationSound();
+            }, 200);
+            setTimeout(() => {
+                playCelebrationSound();
+            }, 400);
+
+            speak(translations[language].complete, language);
+
+            setTimeout(() => {
+                completion.remove();
+                resetGame();
+            }, 3000);
+        }
+
+        function resetGame() {
+            currentLetterIndex = 0;
+            score = 0;
+            scoreDisplay.textContent = score;
+            createFire();
+        }
+
+        function showBatCave(sceneBackground) {
+            // AMAZING BAT CAVE SCENE!
+            const batCave = document.createElement('div');
+            batCave.className = 'bat-cave-scene';
+
+            // STOP BACKGROUND MUSIC!
+            const wasMusicEnabled = musicEnabled;
+            musicEnabled = false;
+            stopBackgroundMusic();
+
+            // Play dark mysterious sound
+            playDarkSound();
+
+            // Cave walls
+            const walls = document.createElement('div');
+            walls.className = 'cave-wall';
+            batCave.appendChild(walls);
+
+            // Stalactites
+            for (let i = 0; i < 8; i++) {
+                const stalactite = document.createElement('div');
+                stalactite.className = 'stalactite';
+                stalactite.style.left = (10 + i * 12) + '%';
+                stalactite.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
+                batCave.appendChild(stalactite);
+            }
+
+            // Glowing crystals
+            const crystalPositions = [
+                { left: '10%', bottom: '25%' },
+                { left: '15%', bottom: '30%' },
+                { left: '85%', bottom: '28%' },
+                { left: '90%', bottom: '23%' }
+            ];
+
+            crystalPositions.forEach(pos => {
+                const crystal = document.createElement('div');
+                crystal.className = 'crystal';
+                crystal.style.left = pos.left;
+                crystal.style.bottom = pos.bottom;
+                batCave.appendChild(crystal);
+            });
+
+            // Flying bats
+            for (let i = 0; i < 3; i++) {
+                const bat = document.createElement('div');
+                bat.className = 'flying-bat';
+                bat.textContent = '🦇';
+                bat.style.top = (15 + i * 15) + '%';
+                bat.style.left = '-50px';
+                bat.style.animationDelay = (i * 1.5) + 's';
+                batCave.appendChild(bat);
+            }
+
+            // Giant bat logo on wall
+            const batLogo = document.createElement('div');
+            batLogo.className = 'bat-logo';
+            batLogo.textContent = '🦇';
+            batCave.appendChild(batLogo);
+
+            // Cave floor
+            const floor = document.createElement('div');
+            floor.className = 'cave-floor';
+            batCave.appendChild(floor);
+
+            // THE BED!
+            const bed = document.createElement('div');
+            bed.className = 'bat-bed';
+            bed.innerHTML = `
+                <div class="bed-frame"></div>
+                <div class="bed-mattress"></div>
+                <div class="bed-pillow"></div>
+                <div class="bed-blanket"></div>
+            `;
+            batCave.appendChild(bed);
+
+            // TOY BOX with toys!
+            const toyBox = document.createElement('div');
+            toyBox.className = 'toy-box';
+            toyBox.innerHTML = `
+                <div class="toy-box-container"></div>
+                <div class="toy-box-lid"></div>
+            `;
+            batCave.appendChild(toyBox);
+
+            // Toys scattered around
+            const toys = [
+                { emoji: '🚗', left: '55%', bottom: '160px' },
+                { emoji: '🦕', left: '60%', bottom: '180px' },
+                { emoji: '⚽', left: '68%', bottom: '165px' },
+                { emoji: '🎮', left: '63%', bottom: '200px' },
+                { emoji: '🧸', left: '72%', bottom: '175px' }
+            ];
+
+            toys.forEach(toy => {
+                const toyEl = document.createElement('div');
+                toyEl.className = 'toy';
+                toyEl.textContent = toy.emoji;
+                toyEl.style.left = toy.left;
+                toyEl.style.bottom = toy.bottom;
+                batCave.appendChild(toyEl);
+            });
+
+            // Bad guy appears in the bat cave - HUGE!
+            const badGuyInCave = document.createElement('div');
+            badGuyInCave.className = 'bad-guy-caught';
+            badGuyInCave.style.position = 'fixed';
+            badGuyInCave.style.left = '50%';
+            badGuyInCave.style.bottom = '30%';
+            badGuyInCave.style.transform = 'translateX(-50%) scale(5)'; // HUGE!
+            badGuyInCave.style.zIndex = '850';
+            badGuyInCave.style.opacity = '0';
+            badGuyInCave.style.transition = 'opacity 1s';
+
+            badGuyInCave.innerHTML = `
+                <div class="bad-guy-head">
+                    <div class="bad-guy-eyebrow bad-guy-eyebrow-left"></div>
+                    <div class="bad-guy-eyebrow bad-guy-eyebrow-right"></div>
+                    <div class="bad-guy-mask">
+                        <div class="bad-guy-eyes bad-guy-eye-left"></div>
+                        <div class="bad-guy-eyes bad-guy-eye-right"></div>
+                    </div>
+                    <div class="bad-guy-mouth"></div>
+                </div>
+                <div class="bad-guy-body"></div>
+                <div class="bad-guy-leg bad-guy-leg-left"></div>
+                <div class="bad-guy-leg bad-guy-leg-right"></div>
+            `;
+
+            batCave.appendChild(badGuyInCave);
+
+            // Title
+            const title = document.createElement('div');
+            title.textContent = language === 'en' ? '🦇 THE BAT CAVE! 🦇' : '🦇 ¡LA CUEVA DEL MURCIÉLAGO! 🦇';
+            title.style.position = 'fixed';
+            title.style.left = '50%';
+            title.style.top = '8%';
+            title.style.transform = 'translateX(-50%)';
+            title.style.fontSize = '70px';
+            title.style.fontWeight = 'bold';
+            title.style.color = '#FFD700';
+            title.style.textShadow = '0 0 30px #FFD700, 0 0 60px #FFA500, 5px 5px 10px black';
+            title.style.zIndex = '900';
+            title.style.opacity = '0';
+            title.style.transition = 'opacity 1s';
+            title.style.letterSpacing = '3px';
+            batCave.appendChild(title);
+
+            // BATMAN subtitle
+            const subtitle = document.createElement('div');
+            subtitle.textContent = 'BATMAN';
+            subtitle.style.position = 'fixed';
+            subtitle.style.left = '50%';
+            subtitle.style.top = '18%';
+            subtitle.style.transform = 'translateX(-50%)';
+            subtitle.style.fontSize = '90px';
+            subtitle.style.fontWeight = 'bold';
+            subtitle.style.color = '#000';
+            subtitle.style.textShadow = '0 0 20px #FFD700, 0 0 40px #FFD700, 3px 3px 6px #FFD700';
+            subtitle.style.zIndex = '900';
+            subtitle.style.opacity = '0';
+            subtitle.style.transition = 'opacity 1s';
+            subtitle.style.letterSpacing = '8px';
+            subtitle.style.fontFamily = 'Impact, Arial Black, sans-serif';
+            batCave.appendChild(subtitle);
+
+            document.body.appendChild(batCave);
+
+            // Fade in the bat cave
+            setTimeout(() => {
+                batCave.classList.add('active');
+                title.style.opacity = '1';
+                subtitle.style.opacity = '1';
+
+                // BATMAN THEME SONG!
+                playBatmanTheme();
+
+                // Repeat Batman theme
+                setTimeout(() => playBatmanTheme(), 3500);
+            }, 100);
+
+            // Bad guy appears with sparkles!
+            setTimeout(() => {
+                badGuyInCave.style.opacity = '1';
+                playCelebrationSound();
+
+                // Sparkles around bad guy
+                for (let i = 0; i < 10; i++) {
+                    setTimeout(() => {
+                        const sparkle = document.createElement('div');
+                        sparkle.className = 'magic-sparkle';
+                        sparkle.textContent = '✨';
+                        sparkle.style.left = (window.innerWidth / 2 + (Math.random() * 200 - 100)) + 'px';
+                        sparkle.style.top = (window.innerHeight * 0.35 + (Math.random() * 100 - 50)) + 'px';
+                        document.body.appendChild(sparkle);
+                        setTimeout(() => sparkle.remove(), 1000);
+                    }, i * 80);
+                }
+            }, 800);
+
+            // Description of the bat cave
+            setTimeout(() => {
+                const description = document.createElement('div');
+                description.textContent = language === 'en' ? '🦇 The Secret Lair! Bed, Toys & Mystery! 🦇' : '🦇 ¡La Guarida Secreta! ¡Cama, Juguetes y Misterio! 🦇';
+                description.style.position = 'fixed';
+                description.style.left = '50%';
+                description.style.bottom = '10%';
+                description.style.transform = 'translateX(-50%)';
+                description.style.fontSize = '45px';
+                description.style.fontWeight = 'bold';
+                description.style.color = '#FFD700';
+                description.style.textShadow = '0 0 20px #000, 3px 3px 6px black';
+                description.style.background = 'rgba(0, 0, 0, 0.9)';
+                description.style.padding = '20px 40px';
+                description.style.borderRadius = '20px';
+                description.style.border = '5px solid #FFD700';
+                description.style.zIndex = '900';
+                batCave.appendChild(description);
+
+                playCelebrationSound();
+                playDarkSound();
+
+                // IT'S A TRAP!
+                setTimeout(() => {
+                    description.remove();
+
+                    // TRAP WARNING!
+                    const trapWarning = document.createElement('div');
+                    trapWarning.textContent = language === 'en' ? '⚠️ IT\'S A TRAP! ⚠️' : '⚠️ ¡ES UNA TRAMPA! ⚠️';
+                    trapWarning.style.position = 'fixed';
+                    trapWarning.style.left = '50%';
+                    trapWarning.style.top = '15%';
+                    trapWarning.style.transform = 'translateX(-50%)';
+                    trapWarning.style.fontSize = '80px';
+                    trapWarning.style.fontWeight = 'bold';
+                    trapWarning.style.color = '#FF0000';
+                    trapWarning.style.textShadow = '0 0 30px #FF0000, 5px 5px 10px black';
+                    trapWarning.style.zIndex = '950';
+                    trapWarning.style.animation = 'flicker 0.3s infinite';
+                    batCave.appendChild(trapWarning);
+
+                    playSirenSound();
+
+                    // Create trap cage - FULL SCREEN!
+                    const trapCage = document.createElement('div');
+                    trapCage.className = 'trap-cage';
+
+                    // Top piece
+                    const trapTop = document.createElement('div');
+                    trapTop.className = 'trap-top';
+                    trapCage.appendChild(trapTop);
+
+                    // Create bars across the entire screen width - EXTRA WIDE SPACING
+                    const screenWidth = window.innerWidth;
+                    const barWidth = 60;
+                    const spacing = 250; // Even more space between bars to see the bad guy!
+                    const numBars = Math.ceil(screenWidth / spacing) + 2;
+
+                    for (let i = 0; i < numBars; i++) {
+                        const bar = document.createElement('div');
+                        bar.className = 'trap-bar';
+                        bar.style.left = (i * spacing) + 'px';
+                        trapCage.appendChild(bar);
+                    }
+
+                    // Floor
+                    const trapFloor = document.createElement('div');
+                    trapFloor.className = 'trap-floor';
+                    trapCage.appendChild(trapFloor);
+
+                    document.body.appendChild(trapCage);
+
+                    // BARS DROP DOWN!
+                    setTimeout(() => {
+                        // BAD GUY LOOKS SURPRISED!
+                        const badGuyHead = badGuyInCave.querySelector('.bad-guy-head');
+                        const badGuyMouth = badGuyInCave.querySelector('.bad-guy-mouth');
+                        const badGuyEyebrows = badGuyInCave.querySelectorAll('.bad-guy-eyebrow');
+
+                        // Surprised exclamation!
+                        const surpriseText = document.createElement('div');
+                        surpriseText.textContent = '😱!!!';
+                        surpriseText.style.position = 'fixed';
+                        surpriseText.style.left = '50%';
+                        surpriseText.style.top = '15%';
+                        surpriseText.style.transform = 'translateX(-50%)';
+                        surpriseText.style.fontSize = '120px';
+                        surpriseText.style.zIndex = '900';
+                        surpriseText.style.animation = 'celebrate 0.5s';
+                        batCave.appendChild(surpriseText);
+                        setTimeout(() => surpriseText.remove(), 1000);
+
+                        // Gasp sound!
+                        playSirenSound();
+
+                        // Change to surprised expression
+                        if (badGuyMouth) {
+                            badGuyMouth.style.width = '30px';
+                            badGuyMouth.style.height = '25px';
+                            badGuyMouth.style.borderRadius = '50%';
+                            badGuyMouth.style.background = '#000';
+                            badGuyMouth.style.border = '3px solid #000';
+                            badGuyMouth.style.top = '45px';
+                            badGuyMouth.style.left = '18px';
+                        }
+
+                        // Raise eyebrows in surprise
+                        badGuyEyebrows.forEach(brow => {
+                            if (brow.classList.contains('bad-guy-eyebrow-left')) {
+                                brow.style.transform = 'rotate(-30deg) translateY(-5px)';
+                            } else {
+                                brow.style.transform = 'rotate(30deg) translateY(-5px)';
+                            }
+                        });
+
+                        // Jump and GET EVEN BIGGER so we can see his surprised face!
+                        badGuyInCave.style.transition = 'transform 0.4s';
+                        badGuyInCave.style.transform = 'translateX(-50%) scale(6)'; // ZOOM IN ON FACE!
+
+                        // Stay very big so we can see his face
+                        setTimeout(() => {
+                            badGuyInCave.style.transform = 'translateX(-50%) scale(5.5)'; // Keep him very big
+                        }, 400);
+
+                        trapTop.classList.add('dropped');
+                        playSirenSound();
+
+                        const bars = trapCage.querySelectorAll('.trap-bar');
+                        bars.forEach((bar, index) => {
+                            setTimeout(() => {
+                                bar.classList.add('dropped');
+                                if (index % 2 === 0) {
+                                    playJailDoorSlam();
+                                }
+                            }, index * 60);
+                        });
+
+                        // Bad guy is trapped!
+                        setTimeout(() => {
+                            trapWarning.textContent = language === 'en' ? '🔒 TRAPPED AGAIN! 🔒' : '🔒 ¡ATRAPADO DE NUEVO! 🔒';
+                            trapWarning.style.color = '#FFD700';
+                            trapWarning.style.textShadow = '0 0 30px #FFD700, 5px 5px 10px black';
+                            trapWarning.style.animation = 'celebrate 1s infinite';
+
+                            playCelebrationSound();
+                            setTimeout(playCelebrationSound, 200);
+                            setTimeout(playCelebrationSound, 400);
+
+                            // Bad guy reacts - shake in cage while staying BIG!
+                            badGuyInCave.style.animation = 'shake-big 0.5s infinite';
+
+                            // Final message
+                            setTimeout(() => {
+                                const finalMsg = document.createElement('div');
+                                finalMsg.textContent = language === 'en' ? '👮 Justice Served! The Bat Cave Trap Worked! 👮' : '👮 ¡Justicia Servida! ¡La Trampa de la Cueva Funcionó! 👮';
+                                finalMsg.style.position = 'fixed';
+                                finalMsg.style.left = '50%';
+                                finalMsg.style.bottom = '8%';
+                                finalMsg.style.transform = 'translateX(-50%)';
+                                finalMsg.style.fontSize = '50px';
+                                finalMsg.style.fontWeight = 'bold';
+                                finalMsg.style.color = '#00FF00';
+                                finalMsg.style.textShadow = '0 0 20px #00FF00, 3px 3px 6px black';
+                                finalMsg.style.background = 'rgba(0, 0, 0, 0.9)';
+                                finalMsg.style.padding = '25px 45px';
+                                finalMsg.style.borderRadius = '25px';
+                                finalMsg.style.border = '6px solid #00FF00';
+                                finalMsg.style.zIndex = '950';
+                                batCave.appendChild(finalMsg);
+
+                                playBatmanTheme();
+                            }, 1000);
+                        }, 700);
+                    }, 400);
+                }, 1500);
+            }, 2500);
+
+            // Exit bat cave and return to game
+            setTimeout(() => {
+                batCave.style.transition = 'opacity 1s';
+                batCave.style.opacity = '0';
+
+                setTimeout(() => {
+                    batCave.remove();
+
+                    // Remove trap cage if it exists
+                    const trapCage = document.querySelector('.trap-cage');
+                    if (trapCage) {
+                        trapCage.remove();
+                    }
+
+                    sceneBackground.classList.remove('active');
+                    setTimeout(() => {
+                        sceneBackground.remove();
+                        // RESUME THE GAME!
+                        gameActive = true;
+                        // Restore background music
+                        if (wasMusicEnabled) {
+                            musicEnabled = true;
+                            musicButton.textContent = 'Music 🎵 ON';
+                            setTimeout(() => {
+                                if (musicEnabled && gameActive) {
+                                    playBackgroundMusic();
+                                }
+                            }, 500);
+                        }
+
+                        // Continue to next letter after the scene
+                        waitingForLetter = true;
+                        setTimeout(createFire, 1500);
+                    }, 500);
+                }, 1000);
+            }, 11000);
+        }
+
+        function toggleLanguage() {
+            language = language === 'en' ? 'es' : 'en';
+            updateNextLetter();
+            languageButton.textContent = translations[language].langButton;
+        }
+
+        languageButton.addEventListener('click', toggleLanguage);
+        musicButton.addEventListener('click', toggleMusic);
+
+        // Add clouds to city background
+        function createClouds() {
+            for (let i = 0; i < 8; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud';
+                cloud.style.left = (Math.random() * window.innerWidth) + 'px';
+                cloud.style.top = (Math.random() * (window.innerHeight * 0.4)) + 'px';
+                cloud.style.width = (80 + Math.random() * 100) + 'px';
+                cloud.style.height = (40 + Math.random() * 40) + 'px';
+                gameContainer.appendChild(cloud);
+            }
+        }
+
+        createClouds();
+        updateNextLetter(); // Initialize the display
+        updateAlphabetProgress(); // Initialize alphabet progress
+
+        // Make sure we're ready to create fire
+        waitingForLetter = true;
+
+        // Background music - Fun firefighting song!
+        let musicPlaying = false;
+        let musicTimeout = null;
+        const musicNotes = [
+            // "Fire! Fire! Put it out! That's what firefighters are all about!"
+            { freq: 523, duration: 0.3 }, // C
+            { freq: 523, duration: 0.3 }, // C
+            { freq: 587, duration: 0.3 }, // D
+            { freq: 659, duration: 0.3 }, // E
+            { freq: 698, duration: 0.4 }, // F
+            { freq: 659, duration: 0.3 }, // E
+            { freq: 587, duration: 0.3 }, // D
+            { freq: 523, duration: 0.5 }, // C
+            { freq: 0, duration: 0.2 }, // rest
+            { freq: 659, duration: 0.3 }, // E
+            { freq: 659, duration: 0.3 }, // E
+            { freq: 698, duration: 0.3 }, // F
+            { freq: 784, duration: 0.3 }, // G
+            { freq: 698, duration: 0.4 }, // F
+            { freq: 659, duration: 0.3 }, // E
+            { freq: 587, duration: 0.3 }, // D
+            { freq: 523, duration: 0.6 }, // C
+        ];
+
+        function stopBackgroundMusic() {
+            musicPlaying = false;
+            if (musicTimeout) {
+                clearTimeout(musicTimeout);
+                musicTimeout = null;
+            }
+        }
+
+        function playBackgroundMusic() {
+            if (musicPlaying || !musicEnabled || !gameActive) return;
+            musicPlaying = true;
+
+            let currentTime = audioContext.currentTime;
+
+            musicNotes.forEach((note) => {
+                if (note.freq > 0) {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+
+                    oscillator.type = 'square';
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+
+                    oscillator.frequency.setValueAtTime(note.freq, currentTime);
+                    gainNode.gain.setValueAtTime(0.08, currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+
+                    oscillator.start(currentTime);
+                    oscillator.stop(currentTime + note.duration);
+                }
+                currentTime += note.duration;
+            });
+
+            // Loop the music
+            musicTimeout = setTimeout(() => {
+                musicPlaying = false;
+                if (musicEnabled && gameActive) {
+                    playBackgroundMusic();
+                }
+            }, currentTime * 1000 - audioContext.currentTime * 1000 + 500);
+        }
+
+        function toggleMusic() {
+            if (musicEnabled) {
+                // Turn off
+                stopBackgroundMusic();
+                musicButton.textContent = 'Music 🔇 OFF';
+            } else {
+                // Turn on
+                musicEnabled = true;
+                musicButton.textContent = 'Music 🎵 ON';
+                if (gameActive) {
+                    playBackgroundMusic();
+                }
+            }
+        }
+
+        // Start music on first click
+        document.addEventListener('click', function startMusic() {
+            playBackgroundMusic();
+            document.removeEventListener('click', startMusic);
+        }, { once: true });
+
+        // Start the game - small delay to ensure DOM is ready
+        setTimeout(() => {
+            createFire();
+        }, 500);
+    </script>
+</body>
+</html>

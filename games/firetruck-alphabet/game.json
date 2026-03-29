@@ -1,0 +1,8 @@
+{
+  "name": "Firetruck Alphabet!",
+  "description": "Help firefighters put out fires and learn the A-Z alphabet! Bilingual English/Spanish. 🚒🔤",
+  "emoji": "🚒",
+  "minAge": 3,
+  "maxAge": 7,
+  "tags": ["letters", "alphabet", "bilingual", "learning"]
+}

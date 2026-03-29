@@ -30,9 +30,12 @@ geraldogames/
 │   └── js/menu.js                ← menu JS (fetches /api/games.php)
 ├── games/
 │   ├── ADDING_GAMES.md           ← guide for adding games (also read this)
-│   └── example-game/
-│       ├── game.json             ← metadata (name, emoji, description, age range)
-│       └── index.html            ← the actual game
+│   ├── example-game/
+│   │   ├── game.json             ← metadata (name, emoji, description, age range)
+│   │   └── index.html            ← the actual game
+│   └── firetruck-alphabet/
+│       ├── game.json             ← "Firetruck Alphabet!" 🚒 ages 3–7
+│       └── index.html            ← bilingual A-Z alphabet game (EN/ES), source: https://github.com/Sunnydalelow/firetruck-alphabet-game
 ├── api/
 │   ├── games.php                 ← PHP: scans games/ and returns JSON list
 │   └── status.php                ← PHP: returns static {updating: false} JSON
