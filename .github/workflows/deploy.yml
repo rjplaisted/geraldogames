@@ -1,0 +1,33 @@
+name: 🚀 Deploy to geraldo.games
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
+      - name: Deploy via SFTP
+        env:
+          DEPLOY_PASS: ${{ secrets.DEPLOY_PASS }}
+        run: |
+          lftp -u geraldog,"$DEPLOY_PASS" \
+               -e "set sftp:auto-confirm yes; \
+                   set net:max-retries 3; \
+                   set net:timeout 30; \
+                   mirror -R --parallel=4 public/ /home/geraldog/public_html/; \
+                   mirror -R --parallel=4 games/ /home/geraldog/public_html/games/; \
+                   mirror -R --parallel=4 api/ /home/geraldog/public_html/api/; \
+                   bye" \
+               sftp://webserver4.pebblehost.com
+
+      - name: ✅ Deploy complete
+        run: echo "Site updated at https://geraldo.games"
