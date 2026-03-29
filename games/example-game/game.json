@@ -4,5 +4,6 @@
   "emoji": "🎨",
   "minAge": 3,
   "maxAge": 7,
-  "tags": ["colors", "learning", "fast"]
+  "tags": ["colors", "learning", "fast"],
+  "hidden": true
 }

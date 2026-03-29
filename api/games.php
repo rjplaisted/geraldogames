@@ -11,7 +11,7 @@ if (is_dir($gamesDir)) {
         $metaFile = "$gamesDir/$entry/game.json";
         if (is_file($metaFile)) {
             $meta = json_decode(file_get_contents($metaFile), true);
-            if ($meta) {
+            if ($meta && empty($meta['hidden'])) {
                 $meta['id'] = $entry;
                 $games[] = $meta;
             }
