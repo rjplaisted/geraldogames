@@ -19,15 +19,12 @@ jobs:
         env:
           DEPLOY_PASS: ${{ secrets.DEPLOY_PASS }}
         run: |
-          lftp -u geraldog,"$DEPLOY_PASS" \
-               -e "set sftp:auto-confirm yes; \
-                   set net:max-retries 3; \
-                   set net:timeout 30; \
-                   mirror -R --parallel=4 public/ /home/geraldog/public_html/; \
-                   mirror -R --parallel=4 games/ /home/geraldog/public_html/games/; \
-                   mirror -R --parallel=4 api/ /home/geraldog/public_html/api/; \
-                   bye" \
-               sftp://webserver4.pebblehost.com
+          if [ -z "$DEPLOY_PASS" ]; then
+            echo "❌ DEPLOY_PASS secret is not set"
+            exit 1
+          fi
+          LFTP_CMDS="set sftp:auto-confirm yes; set sftp:connect-program 'ssh -o StrictHostKeyChecking=no'; set net:max-retries 3; set net:timeout 30; mirror -R --parallel=4 public/ /home/geraldog/public_html/; mirror -R --parallel=4 games/ /home/geraldog/public_html/games/; mirror -R --parallel=4 api/ /home/geraldog/public_html/api/; bye"
+          lftp -u "geraldog,$DEPLOY_PASS" sftp://webserver4.pebblehost.com -e "$LFTP_CMDS"
 
       - name: ✅ Deploy complete
-        run: echo "Site updated at https://geraldo.games"
+        run: echo "Site updated at http://geraldo.games"
