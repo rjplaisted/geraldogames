@@ -2,3 +2,16 @@
 .env
 .env.*
 !.env.example
+
+# Dependencies
+node_modules/
+
+# Temp / scratch files
+temp/
+
+# Deploy helpers (local only — contain credentials)
+deploy_key
+deploy_key.pub
+deploy.js
+gen-key.js
+setup-server.ps1
