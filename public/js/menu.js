@@ -57,9 +57,10 @@ async function checkStatus() {
       }
     }
   } catch {
-    // Server restarting — keep showing overlay
-    overlay.classList.remove("hidden");
-    updateMsg.textContent = "Restarting… almost there! 🚀";
+    // Only keep showing overlay if an update was already in progress
+    if (!overlay.classList.contains("hidden")) {
+      updateMsg.textContent = "Restarting… almost there! 🚀";
+    }
   }
 }
 
