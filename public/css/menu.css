@@ -246,6 +246,17 @@ footer {
   font-size: 0.85rem;
 }
 
+.last-update {
+  position: fixed;
+  bottom: 0.4rem;
+  right: 0.6rem;
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.35);
+  pointer-events: none;
+  z-index: 3;
+  letter-spacing: 0.02em;
+}
+
 /* ── Tablet & Large screen tweaks ──────────────────────────── */
 @media (min-width: 768px) {
   .game-grid { gap: 2rem; }

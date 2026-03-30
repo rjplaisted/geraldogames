@@ -68,9 +68,32 @@ function startPolling() {
   pollInterval = setInterval(checkStatus, 2500);
 }
 
+/* ── Last-update timestamp ──────────────────────────────────── */
+async function loadLastUpdate() {
+  try {
+    const res = await fetch("/api/status.php");
+    const status = await res.json();
+    if (status.lastUpdate) {
+      const el = document.getElementById("last-update");
+      if (el) {
+        const d = new Date(status.lastUpdate);
+        const fmt = d.toLocaleString("en-US", {
+          month: "short", day: "numeric", year: "numeric",
+          hour: "numeric", minute: "2-digit", hour12: true
+        });
+        el.textContent = `Updated ${fmt}`;
+        el.title = d.toISOString();
+      }
+    }
+  } catch {
+    // silently skip — timestamp is non-critical
+  }
+}
+
 /* ── Init ───────────────────────────────────────────────────── */
 updateStarDisplay();
 loadGames();
+loadLastUpdate();
 startPolling();
 
 // Refresh star count whenever the tab regains focus (kid just finished a game)
