@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>G-Run!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&family=Nunito:wght@700;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; font-family: 'Nunito', sans-serif;
+      background: #1a1a2e; color: #fff;
+      display: flex; flex-direction: column;
+      touch-action: manipulation; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+    }
+    header {
+      padding: 0.8rem 1.2rem;
+      display: flex; align-items: center; gap: 1rem;
+      background: rgba(255,255,255,0.05);
+      z-index: 10;
+    }
+    .back-btn {
+      font-size: 1.8rem; text-decoration: none; line-height: 1;
+      background: rgba(255,255,255,0.12); border-radius: 50%;
+      width: 2.8rem; height: 2.8rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    header h1 { font-family: 'Baloo 2', cursive; font-size: 1.6rem; }
+    #score-bar { margin-left: auto; font-size: 1.3rem; font-weight: 900; }
+
+    #game-wrapper {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    #overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+      z-index: 20;
+      gap: 1.5rem;
+    }
+    #overlay.hidden { display: none; }
+    #overlay h2 {
+      font-family: 'Baloo 2', cursive;
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    #overlay p {
+      font-size: clamp(1rem, 3vw, 1.4rem);
+      opacity: 0.8;
+    }
+    #overlay .final-score {
+      font-family: 'Baloo 2', cursive;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      color: #ffd93d;
+    }
+    .play-btn {
+      padding: 1rem 3rem;
+      border-radius: 999px; border: none;
+      background: #ffd93d; color: #333;
+      font-family: 'Baloo 2', cursive;
+      font-size: 1.5rem; font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #c8a800;
+      transition: transform 0.08s;
+    }
+    .play-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #c8a800; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back-btn" href="/" aria-label="Back">&#8592;</a>
+    <h1>G-Run!</h1>
+    <div id="score-bar">🪙 <span id="score-display">0</span></div>
+  </header>
+
+  <div id="game-wrapper">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="overlay">
+      <h2 id="overlay-title">G-Run!</h2>
+      <p id="overlay-msg">Tap or press Space to jump!</p>
+      <div class="final-score hidden" id="overlay-score"></div>
+      <button class="play-btn" id="play-btn">Play!</button>
+    </div>
+  </div>
+
+  <script>
+    // ===== CANVAS SETUP =====
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const GAME_W = 1200;
+    const GAME_H = 500;
+    canvas.width = GAME_W;
+    canvas.height = GAME_H;
+
+    // ===== SPRITE SHEET =====
+    const spriteSheet = new Image();
+    spriteSheet.src = 'g-run.png';
+    const COLS = 7;
+    const ROWS = 4;
+    let sheetWidth, sheetHeight, frameWidth, frameHeight;
+
+    // ===== GAME STATE =====
+    let gameState = 'start';
+    let score = 0;
+    let gameSpeed = 4.5;
+    const GROUND_LEVEL = GAME_H - 130;
+    let frameCount = 0;
+    let groundOffset = 0;
+    let distanceTraveled = 0;
+
+    // ===== PLAYER =====
+    const player = {
+      x: 100,
+      y: GROUND_LEVEL,
+      width: 100,
+      height: 120,
+      vy: 0,
+      gravity: 0.7,
+      jumpForce: -15,
+      grounded: true,
+      currentFrame: 0,
+      animTimer: 0,
+      animSpeed: 2,
+    };
+
+    // ===== WORLD OBJECTS =====
+    let scenery = [];     // Background decorations (flowers, bushes)
+    let pipes = [];       // Green pipes
+    let blocks = [];      // ? blocks and brick blocks
+    let coins = [];       // Collectible coins
+    let waterZones = [];  // Water patches
+    let tornados = [];    // Spinning tornados
+    let floatingTexts = []; // Score popups
+
+    // ===== CLOUDS =====
+    let clouds = [];
+    for (let i = 0; i < 6; i++) {
+      clouds.push({
+        x: Math.random() * GAME_W,
+        y: 20 + Math.random() * 80,
+        w: 60 + Math.random() * 90,
+        speed: 0.2 + Math.random() * 0.4,
+      });
+    }
+
+    // ===== MOUNTAINS (parallax background) =====
+    let mountains = [];
+    for (let i = 0; i < 4; i++) {
+      mountains.push({
+        x: i * 400,
+        w: 250 + Math.random() * 200,
+        h: 80 + Math.random() * 60,
+      });
+    }
+
+    // ===== UI =====
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayMsg = document.getElementById('overlay-msg');
+    const overlayScore = document.getElementById('overlay-score');
+    const playBtn = document.getElementById('play-btn');
+    const scoreDisplay = document.getElementById('score-display');
+
+    // ===== SPRITE DRAWING =====
+    function drawSpriteFrame(frameIndex, dx, dy, dw, dh) {
+      const col = frameIndex % COLS;
+      const row = Math.floor(frameIndex / COLS);
+      const sx = col * frameWidth;
+      const sy = row * frameHeight;
+      ctx.drawImage(spriteSheet, sx, sy, frameWidth, frameHeight, dx, dy, dw, dh);
+    }
+
+    // ===== DRAW: SKY =====
+    function drawSky() {
+      const grad = ctx.createLinearGradient(0, 0, 0, GROUND_LEVEL + player.height);
+      grad.addColorStop(0, '#5B9BD5');
+      grad.addColorStop(0.5, '#87CEEB');
+      grad.addColorStop(1, '#B8E4F0');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, GAME_W, GROUND_LEVEL + player.height);
+    }
+
+    // ===== DRAW: MOUNTAINS =====
+    function drawMountains() {
+      ctx.fillStyle = '#7BAA6E';
+      mountains.forEach(m => {
+        ctx.beginPath();
+        ctx.moveTo(m.x, GROUND_LEVEL + player.height);
+        ctx.lineTo(m.x + m.w / 2, GROUND_LEVEL + player.height - m.h);
+        ctx.lineTo(m.x + m.w, GROUND_LEVEL + player.height);
+        ctx.fill();
+      });
+      // Snow caps
+      ctx.fillStyle = '#E8F5E9';
+      mountains.forEach(m => {
+        ctx.beginPath();
+        ctx.moveTo(m.x + m.w * 0.35, GROUND_LEVEL + player.height - m.h + 20);
+        ctx.lineTo(m.x + m.w / 2, GROUND_LEVEL + player.height - m.h);
+        ctx.lineTo(m.x + m.w * 0.65, GROUND_LEVEL + player.height - m.h + 20);
+        ctx.fill();
+      });
+    }
+
+    // ===== DRAW: CLOUDS =====
+    function drawClouds() {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      clouds.forEach(c => {
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y, c.w / 2, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(c.x - c.w * 0.22, c.y - 10, c.w * 0.3, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(c.x + c.w * 0.22, c.y - 6, c.w * 0.25, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // ===== DRAW: GROUND =====
+    function drawGround() {
+      const gy = GROUND_LEVEL + player.height;
+      // Dirt
+      ctx.fillStyle = '#8B5E3C';
+      ctx.fillRect(0, gy, GAME_W, GAME_H - gy);
+      // Grass strip
+      ctx.fillStyle = '#4CAF50';
+      ctx.fillRect(0, gy - 6, GAME_W, 12);
+      // Grass tufts
+      ctx.fillStyle = '#66BB6A';
+      for (let i = -1; i < GAME_W / 30 + 2; i++) {
+        const gx = (i * 30 - groundOffset % 30);
+        ctx.beginPath();
+        ctx.moveTo(gx, gy - 6);
+        ctx.lineTo(gx + 6, gy - 14);
+        ctx.lineTo(gx + 12, gy - 6);
+        ctx.fill();
+      }
+      // Ground pattern
+      ctx.fillStyle = '#7A5230';
+      for (let i = -1; i < GAME_W / 50 + 2; i++) {
+        const gx = (i * 50 - groundOffset % 50);
+        ctx.fillRect(gx, gy + 12, 25, 4);
+      }
+    }
+
+    // ===== DRAW: PIPE =====
+    function drawPipe(p) {
+      // Pipe body
+      ctx.fillStyle = '#2E7D32';
+      ctx.fillRect(p.x + 5, p.y + 20, p.width - 10, p.height - 20);
+      // Pipe rim
+      ctx.fillStyle = '#43A047';
+      ctx.fillRect(p.x, p.y, p.width, 24);
+      // Highlight
+      ctx.fillStyle = '#66BB6A';
+      ctx.fillRect(p.x + 8, p.y + 24, 8, p.height - 28);
+      // Shadow
+      ctx.fillStyle = '#1B5E20';
+      ctx.fillRect(p.x + p.width - 16, p.y + 24, 6, p.height - 28);
+      // Rim highlight
+      ctx.fillStyle = '#81C784';
+      ctx.fillRect(p.x + 3, p.y + 3, p.width - 6, 6);
+    }
+
+    // ===== DRAW: BLOCK =====
+    function drawBlock(b) {
+      if (b.type === 'question') {
+        // ? Block
+        ctx.fillStyle = b.hit ? '#8D6E63' : '#FFB300';
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        ctx.strokeStyle = '#E65100';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(b.x, b.y, b.width, b.height);
+        // Inner border
+        ctx.strokeStyle = '#FFF176';
+        ctx.strokeRect(b.x + 3, b.y + 3, b.width - 6, b.height - 6);
+        // ? mark
+        if (!b.hit) {
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 28px "Baloo 2", cursive';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('?', b.x + b.width / 2, b.y + b.height / 2 + 2);
+        }
+      } else {
+        // Brick block
+        ctx.fillStyle = '#A1887F';
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        ctx.strokeStyle = '#6D4C41';
+        ctx.lineWidth = 1;
+        // Brick lines
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y + b.height / 2);
+        ctx.lineTo(b.x + b.width, b.y + b.height / 2);
+        ctx.moveTo(b.x + b.width / 2, b.y);
+        ctx.lineTo(b.x + b.width / 2, b.y + b.height / 2);
+        ctx.moveTo(b.x + b.width * 0.25, b.y + b.height / 2);
+        ctx.lineTo(b.x + b.width * 0.25, b.y + b.height);
+        ctx.moveTo(b.x + b.width * 0.75, b.y + b.height / 2);
+        ctx.lineTo(b.x + b.width * 0.75, b.y + b.height);
+        ctx.stroke();
+      }
+    }
+
+    // ===== DRAW: COIN =====
+    function drawCoin(c) {
+      if (c.collected) return;
+      const bobY = c.y + Math.sin(frameCount * 0.04 + (c.seed || 0)) * 3;
+      // Glow
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+      ctx.beginPath();
+      ctx.arc(c.x + 15, bobY + 15, 18, 0, Math.PI * 2);
+      ctx.fill();
+      // Coin body
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(c.x + 15, bobY + 15, 13, 0, Math.PI * 2);
+      ctx.fill();
+      // Coin shine
+      ctx.fillStyle = '#FFF176';
+      ctx.beginPath();
+      ctx.arc(c.x + 12, bobY + 12, 5, 0, Math.PI * 2);
+      ctx.fill();
+      // Dollar sign
+      ctx.fillStyle = '#F57F17';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', c.x + 15, bobY + 16);
+    }
+
+    // ===== DRAW: FLOWER =====
+    function drawFlower(f) {
+      // Stem
+      ctx.strokeStyle = '#2E7D32';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(f.x + 10, f.y + f.height);
+      ctx.lineTo(f.x + 10, f.y + 14);
+      ctx.stroke();
+      // Leaf
+      ctx.fillStyle = '#4CAF50';
+      ctx.beginPath();
+      ctx.ellipse(f.x + 16, f.y + f.height - 10, 8, 4, 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Petals
+      const colors = ['#FF5252', '#FF4081', '#E040FB', '#FF6E40', '#FFAB40'];
+      const petalColor = colors[Math.floor(f.x) % colors.length];
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2 + frameCount * 0.02;
+        ctx.fillStyle = petalColor;
+        ctx.beginPath();
+        ctx.ellipse(
+          f.x + 10 + Math.cos(angle) * 7,
+          f.y + 10 + Math.sin(angle) * 7,
+          5, 5, 0, 0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+      // Center
+      ctx.fillStyle = '#FFC107';
+      ctx.beginPath();
+      ctx.arc(f.x + 10, f.y + 10, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ===== DRAW: WATER =====
+    function drawWater(w) {
+      // Water body
+      ctx.fillStyle = 'rgba(33, 150, 243, 0.5)';
+      ctx.fillRect(w.x, w.y, w.width, w.height);
+      // Wave top
+      ctx.strokeStyle = '#2196F3';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let wx = w.x; wx < w.x + w.width; wx += 4) {
+        const wy = w.y + Math.sin((wx + frameCount * 2) * 0.05) * 4;
+        if (wx === w.x) ctx.moveTo(wx, wy);
+        else ctx.lineTo(wx, wy);
+      }
+      ctx.stroke();
+      // Sparkles
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      for (let i = 0; i < 3; i++) {
+        const sx = w.x + ((frameCount * 1.5 + i * 50) % w.width);
+        const sy = w.y + 10 + Math.sin(frameCount * 0.1 + i) * 5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ===== DRAW: TORNADO =====
+    function drawTornado(t) {
+      const spin = frameCount * 0.15;
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      for (let i = 0; i < 6; i++) {
+        const ratio = i / 6;
+        // Wide at top (i=0), narrow at bottom (i=5)
+        const w = 30 - ratio * 22;
+        const ty = t.y + ratio * t.height;
+        const wobble = Math.sin(spin + i * 1.2) * (3 + (1 - ratio) * 8);
+        ctx.fillStyle = i % 2 === 0 ? '#90A4AE' : '#B0BEC5';
+        ctx.beginPath();
+        ctx.ellipse(t.x + t.width / 2 + wobble, ty, w, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Debris particles orbit near the top
+      ctx.fillStyle = '#795548';
+      for (let i = 0; i < 4; i++) {
+        const angle = spin * 2 + i * 1.5;
+        const radius = 20 + i * 4;
+        const dx = t.x + t.width / 2 + Math.cos(angle) * radius;
+        const dy = t.y + t.height * 0.2 + Math.sin(angle) * radius * 0.4;
+        ctx.fillRect(dx, dy, 4, 4);
+      }
+      ctx.restore();
+    }
+
+    // ===== DRAW: FLOATING TEXT =====
+    function drawFloatingTexts() {
+      floatingTexts.forEach(ft => {
+        ctx.globalAlpha = ft.life / 60;
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 22px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.globalAlpha = 1;
+      });
+    }
+
+    // ===== SPAWNING =====
+    let spawnTimer = 0;
+
+    function spawnStuff() {
+      spawnTimer++;
+
+      // Spawn pipes every ~180 frames
+      if (spawnTimer % 180 === 0) {
+        const h = 60 + Math.random() * 50;
+        pipes.push({
+          x: GAME_W + 20,
+          y: GROUND_LEVEL + player.height - h,
+          width: 55,
+          height: h,
+        });
+      }
+
+      // Spawn blocks every ~120 frames
+      if (spawnTimer % 120 === 30) {
+        const count = 1 + Math.floor(Math.random() * 3);
+        const baseX = GAME_W + 20;
+        const bY = GROUND_LEVEL - 40 - Math.random() * 60;
+        for (let i = 0; i < count; i++) {
+          blocks.push({
+            x: baseX + i * 44,
+            y: bY,
+            width: 42,
+            height: 42,
+            type: Math.random() < 0.4 ? 'question' : 'brick',
+            hit: false,
+          });
+        }
+      }
+
+      // Spawn coins every ~60 frames
+      if (spawnTimer % 60 === 0) {
+        const numCoins = 1 + Math.floor(Math.random() * 4);
+        const startX = GAME_W + 20;
+        const coinY = GROUND_LEVEL - 20 - Math.random() * 120;
+        for (let i = 0; i < numCoins; i++) {
+          coins.push({
+            x: startX + i * 35,
+            y: coinY,
+            width: 30,
+            height: 30,
+            collected: false,
+            seed: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      // Spawn flowers every ~100 frames
+      if (spawnTimer % 100 === 50) {
+        const count = 1 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+          scenery.push({
+            x: GAME_W + 20 + i * 40,
+            y: GROUND_LEVEL + player.height - 30,
+            width: 20,
+            height: 30,
+            type: 'flower',
+          });
+        }
+      }
+
+      // Spawn water every ~300 frames
+      if (spawnTimer % 300 === 150) {
+        waterZones.push({
+          x: GAME_W + 20,
+          y: GROUND_LEVEL + player.height - 15,
+          width: 150 + Math.random() * 100,
+          height: 20,
+        });
+      }
+
+      // Spawn tornado every ~400 frames
+      if (spawnTimer % 400 === 200) {
+        tornados.push({
+          x: GAME_W + 20,
+          y: GROUND_LEVEL + player.height - 100,
+          width: 50,
+          height: 100,
+        });
+      }
+    }
+
+    // ===== COLLISION: COINS =====
+    function checkCoinCollect() {
+      const px = player.x + 15;
+      const py = player.y + 10;
+      const pw = player.width - 30;
+      const ph = player.height - 15;
+
+      coins.forEach(c => {
+        if (c.collected) return;
+        if (
+          px < c.x + c.width &&
+          px + pw > c.x &&
+          py < c.y + c.height &&
+          py + ph > c.y
+        ) {
+          c.collected = true;
+          score += 10;
+          scoreDisplay.textContent = score;
+          floatingTexts.push({
+            x: c.x + 15, y: c.y - 10,
+            text: '+10', color: '#FFD700', life: 60,
+          });
+        }
+      });
+    }
+
+    // ===== COLLISION: ? BLOCKS =====
+    function checkBlockHit() {
+      blocks.forEach(b => {
+        if (b.hit || b.type !== 'question') return;
+        // Check if player head hits block from below
+        const px = player.x + 15;
+        const pw = player.width - 30;
+        if (
+          player.vy < 0 &&
+          px + pw > b.x && px < b.x + b.width &&
+          player.y < b.y + b.height && player.y > b.y
+        ) {
+          b.hit = true;
+          score += 25;
+          scoreDisplay.textContent = score;
+          floatingTexts.push({
+            x: b.x + b.width / 2, y: b.y - 15,
+            text: '+25', color: '#FFB300', life: 60,
+          });
+        }
+      });
+    }
+
+    // ===== COLLISION: TORNADO LAUNCH =====
+    function checkTornadoLaunch() {
+      const px = player.x + 15;
+      const py = player.y + 10;
+      const pw = player.width - 30;
+      const ph = player.height - 15;
+
+      tornados.forEach(t => {
+        if (
+          px < t.x + t.width + 10 &&
+          px + pw > t.x - 10 &&
+          py < t.y + t.height &&
+          py + ph > t.y
+        ) {
+          // Launch player way up!
+          player.vy = -28;
+          player.grounded = false;
+          floatingTexts.push({
+            x: player.x + player.width / 2, y: player.y - 20,
+            text: 'WHOOSH!', color: '#90A4AE', life: 50,
+          });
+        }
+      });
+    }
+
+    // ===== UPDATE ALL WORLD OBJECTS =====
+    function updateWorld() {
+      // Move everything left
+      const moveItems = (arr) => {
+        arr.forEach(item => item.x -= gameSpeed);
+      };
+      moveItems(pipes);
+      moveItems(blocks);
+      moveItems(coins);
+      moveItems(scenery);
+      moveItems(waterZones);
+      moveItems(tornados);
+
+      // Move mountains (parallax - slower)
+      mountains.forEach(m => {
+        m.x -= gameSpeed * 0.15;
+        if (m.x + m.w < 0) {
+          m.x = GAME_W + Math.random() * 100;
+          m.w = 250 + Math.random() * 200;
+          m.h = 80 + Math.random() * 60;
+        }
+      });
+
+      // Move clouds
+      clouds.forEach(c => {
+        c.x -= c.speed + gameSpeed * 0.1;
+        if (c.x + c.w < 0) {
+          c.x = GAME_W + c.w;
+          c.y = 20 + Math.random() * 80;
+        }
+      });
+
+      // Remove off-screen objects
+      pipes = pipes.filter(p => p.x + p.width > -60);
+      blocks = blocks.filter(b => b.x + b.width > -60);
+      coins = coins.filter(c => c.x + c.width > -60);
+      scenery = scenery.filter(s => s.x + s.width > -60);
+      waterZones = waterZones.filter(w => w.x + w.width > -60);
+      tornados = tornados.filter(t => t.x + t.width > -60);
+
+      // Update floating texts
+      floatingTexts.forEach(ft => {
+        ft.y -= 1.5;
+        ft.life--;
+      });
+      floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+
+      // Distance score
+      distanceTraveled += gameSpeed;
+      if (Math.floor(distanceTraveled) % 100 === 0 && distanceTraveled > 0) {
+        score++;
+        scoreDisplay.textContent = score;
+      }
+    }
+
+    // ===== PLAYER =====
+    function drawPlayer() {
+      drawSpriteFrame(player.currentFrame, player.x, player.y, player.width, player.height);
+    }
+
+    function updatePlayer() {
+      player.animTimer++;
+      if (player.animTimer % player.animSpeed === 0) {
+        player.currentFrame++;
+        if (player.currentFrame > 26) player.currentFrame = 0;
+      }
+
+      if (!player.grounded) {
+        player.vy += player.gravity;
+        player.y += player.vy;
+        if (player.y >= GROUND_LEVEL) {
+          player.y = GROUND_LEVEL;
+          player.vy = 0;
+          player.grounded = true;
+        }
+      }
+    }
+
+    function jump() {
+      if (player.grounded && gameState === 'playing') {
+        player.vy = player.jumpForce;
+        player.grounded = false;
+      }
+    }
+
+    // ===== GAME CONTROL =====
+    function startGame() {
+      gameState = 'playing';
+      score = 0;
+      distanceTraveled = 0;
+      scoreDisplay.textContent = '0';
+      gameSpeed = 4.5;
+      frameCount = 0;
+      spawnTimer = 0;
+      pipes = [];
+      blocks = [];
+      coins = [];
+      scenery = [];
+      waterZones = [];
+      tornados = [];
+      floatingTexts = [];
+      player.y = GROUND_LEVEL;
+      player.vy = 0;
+      player.grounded = true;
+      player.currentFrame = 0;
+      player.animTimer = 0;
+      overlay.classList.add('hidden');
+    }
+
+    // ===== MAIN LOOP =====
+    function gameLoop() {
+      ctx.clearRect(0, 0, GAME_W, GAME_H);
+
+      drawSky();
+      drawMountains();
+      drawClouds();
+
+      if (gameState === 'playing') {
+        frameCount++;
+        groundOffset += gameSpeed;
+
+        spawnStuff();
+        updateWorld();
+        updatePlayer();
+        checkCoinCollect();
+        checkBlockHit();
+        checkTornadoLaunch();
+
+        // Gradually speed up
+        if (frameCount % 500 === 0 && gameSpeed < 8) {
+          gameSpeed += 0.2;
+        }
+      }
+
+      // Draw water behind ground
+      waterZones.forEach(w => drawWater(w));
+      drawGround();
+
+      // Draw scenery (flowers)
+      scenery.forEach(s => {
+        if (s.type === 'flower') drawFlower(s);
+      });
+
+      // Draw pipes
+      pipes.forEach(p => drawPipe(p));
+
+      // Draw blocks
+      blocks.forEach(b => drawBlock(b));
+
+      // Draw coins
+      coins.forEach(c => drawCoin(c));
+
+      // Draw tornados
+      tornados.forEach(t => drawTornado(t));
+
+      // Draw player
+      drawPlayer();
+
+      // Draw floating texts
+      drawFloatingTexts();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ===== INPUT =====
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        jump();
+      }
+    });
+
+    canvas.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      jump();
+    });
+
+    playBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      startGame();
+    });
+
+    // ===== INIT =====
+    function initSheet() {
+      sheetWidth = spriteSheet.naturalWidth;
+      sheetHeight = spriteSheet.naturalHeight;
+      frameWidth = sheetWidth / COLS;
+      frameHeight = sheetHeight / ROWS;
+      gameLoop();
+    }
+
+    spriteSheet.onload = initSheet;
+    if (spriteSheet.complete && spriteSheet.naturalWidth > 0) initSheet();
+  </script>
+</body>
+</html>

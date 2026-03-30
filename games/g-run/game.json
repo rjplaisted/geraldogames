@@ -1,0 +1,8 @@
+{
+  "name": "G-Run!",
+  "description": "Run, jump, and dodge obstacles in this endless runner!",
+  "emoji": "🏃",
+  "minAge": 4,
+  "maxAge": 10,
+  "tags": ["action", "runner", "arcade", "jumping"]
+}
