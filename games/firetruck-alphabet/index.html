@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Comic Sans MS', cursive, sans-serif;
-            background: linear-gradient(to bottom, #87CEEB 0%, #4A90E2 40%, #808080 40%, #696969 100%);
+            background: linear-gradient(to bottom, #87CEEB 0%, #4A90E2 54%, #808080 54%, #696969 100%);
             overflow: hidden;
             cursor: pointer;
             position: relative;
@@ -25,7 +25,7 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 60%;
+            height: 46%;
             background: repeating-linear-gradient(
                 90deg,
                 #696969 0px,
@@ -1654,7 +1654,7 @@
             the 1440×900 design space even after the CSS scale is applied
     ──────────────────────────────────────────────────────────────────────── */
     (function () {
-        var DW = 1440, DH = 900;   // design resolution
+        var DW = 1728, DH = 1080;  // design resolution (MacBook Pro native)
         var _scale = 1;
 
         // 1. Override window dimensions BEFORE game JS reads them
