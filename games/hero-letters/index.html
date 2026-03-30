@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hero Letters! 🦸</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body { 
+            font-family: 'Comic Sans MS', cursive, sans-serif; 
+            overflow: hidden; 
+            background: #87CEEB; /* Day sky */
+            touch-action: manipulation;
+        }
+        
+        #home-btn {
+            position: fixed; top: 15px; left: 15px; z-index: 1000;
+            background: white; border: 4px solid #333; border-radius: 50%;
+            width: 60px; height: 60px; font-size: 30px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center; text-decoration: none;
+            box-shadow: 0 4px 0 #555;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        #home-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #555; }
+
+        .screen { 
+            display: none; width: 100vw; height: 100vh; flex-direction: column; 
+            align-items: center; justify-content: center; position: absolute; top: 0; left: 0; 
+        }
+        .screen.active { display: flex; }
+
+        /* Start Screen */
+        #start-screen { background: linear-gradient(135deg, #FF6B6B, #4ECDC4); }
+        .title { 
+            font-size: 4rem; color: #FFD700; text-shadow: 3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000; 
+            text-align: center; margin-bottom: 20px; animation: bounce 2s infinite; 
+        }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        .instructions {
+            font-size: 1.5rem; text-align: center; margin-bottom: 40px; background: rgba(255,255,255,0.9); 
+            padding: 15px 30px; border-radius: 20px; border: 4px solid #333; max-width: 80%;
+        }
+        .btn {
+            font-size: 2.5rem; padding: 20px 80px; background: #FF4500; color: white; 
+            border: 6px solid #fff; border-radius: 50px; cursor: pointer; 
+            box-shadow: 0 10px 0 #CC3700; font-family: inherit; font-weight: bold;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn:active { transform: translateY(10px); box-shadow: 0 0 0 #CC3700; }
+
+        /* Action Overlay Animation Scene */
+        #action-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden; z-index: 200; display: none;
+            background: linear-gradient(180deg, #1a1a3e 0%, #2d1b69 40%, #4a2c8a 70%, #6b3fa0 100%);
+        }
+        /* City skyline background */
+        #action-city {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+        }
+        .action-ground {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 25%;
+            background: linear-gradient(180deg, #555 0%, #444 20%, #333 100%);
+            border-top: 3px solid #666;
+        }
+        .action-sidewalk {
+            position: absolute; bottom: 25%; left: 0; width: 100%; height: 4%;
+            background: #888; border-top: 2px solid #999; border-bottom: 2px solid #666;
+        }
+        .action-building {
+            position: absolute; bottom: 29%; border: 2px solid #111;
+        }
+        .action-window {
+            position: absolute; width: 12px; height: 14px; background: #FFE082; border: 1px solid #333; border-radius: 2px;
+        }
+        /* Stars in night sky */
+        .action-star {
+            position: absolute; background: white; border-radius: 50%; animation: twinkle 1.5s infinite alternate;
+        }
+        /* Moon */
+        #action-moon {
+            position: absolute; top: 8%; right: 12%; width: 50px; height: 50px;
+            background: #FFFDE7; border-radius: 50%; box-shadow: 0 0 20px #FFFDE7, 0 0 40px rgba(255,253,231,0.3);
+        }
+        /* Robber */
+        #action-robber {
+            position: absolute; bottom: 29%; z-index: 15;
+            transform: translateX(110vw);
+            transition: transform 1.5s ease-out;
+        }
+        #action-robber.sneak-in { transform: translateX(65vw); }
+        #action-robber.caught { transform: translateX(55vw) rotate(-20deg) translateY(10px); }
+        #action-robber svg { width: 100px; height: 120px; }
+        /* Sneaking animation */
+        .sneaking { animation: sneak 0.6s ease-in-out infinite; }
+        @keyframes sneak { 0%,100%{transform:translateX(65vw) translateY(0)} 50%{transform:translateX(65vw) translateY(-5px)} }
+        
+        /* Dogmobile */
+        #action-dogmobile {
+            position: absolute; bottom: 26%; z-index: 12;
+            transform: translateX(-120vw);
+            transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        #action-dogmobile.drive-in { transform: translateX(25vw); }
+        #action-dogmobile svg { width: 220px; height: 110px; }
+        
+        /* Super Dog jumping out */
+        #action-superdog {
+            position: absolute; bottom: 29%; z-index: 16;
+            opacity: 0;
+            transform: translateX(35vw) translateY(0);
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #action-superdog.jump-out {
+            opacity: 1;
+            transform: translateX(35vw) translateY(-60px);
+        }
+        #action-superdog.land {
+            opacity: 1;
+            transform: translateX(50vw) translateY(0);
+        }
+        #action-superdog.tackle {
+            opacity: 1;
+            transform: translateX(58vw) translateY(-10px) rotate(15deg);
+        }
+        #action-superdog svg { width: 110px; height: 110px; }
+        
+        /* Super Boy jumping out */
+        #action-superboy {
+            position: absolute; bottom: 29%; z-index: 16;
+            opacity: 0;
+            transform: translateX(30vw) translateY(0);
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #action-superboy.jump-out {
+            opacity: 1;
+            transform: translateX(30vw) translateY(-80px);
+        }
+        #action-superboy.land {
+            opacity: 1;
+            transform: translateX(45vw) translateY(0);
+        }
+        #action-superboy.tackle {
+            opacity: 1;
+            transform: translateX(53vw) translateY(-5px) rotate(-10deg);
+        }
+        #action-superboy svg { width: 90px; height: 110px; }
+        
+        /* Capture effect */
+        #action-capture-fx {
+            position: absolute; bottom: 30%; left: 55vw; z-index: 17;
+            font-size: 3rem; font-weight: bold; color: #FFD700;
+            text-shadow: 0 0 10px #FF9800, 2px 2px 0 #000;
+            opacity: 0; transform: scale(0);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #action-capture-fx.show {
+            opacity: 1; transform: scale(1);
+        }
+        /* Starburst behind capture */
+        .starburst {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            width: 150px; height: 150px;
+            background: radial-gradient(circle, rgba(255,215,0,0.4) 0%, transparent 70%);
+            border-radius: 50%; animation: starPulse 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes starPulse { 0%{transform:translate(-50%,-50%) scale(0.8)} 100%{transform:translate(-50%,-50%) scale(1.2)} }
+
+        /* Game Screen */
+        #game-screen { background: #87CEEB; }
+        .top-bar { position: absolute; top: 20px; right: 20px; font-size: 2rem; background: white; padding: 10px 20px; border-radius: 20px; border: 4px solid #333; z-index: 100;}
+        .prompt-area {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            margin-bottom: 40px; margin-top: 60px;
+        }
+        .speaker-btn {
+            font-size: 4rem; cursor: pointer; background: white; border: 4px solid #333; 
+            border-radius: 50%; width: 100px; height: 100px; display: flex; 
+            justify-content: center; align-items: center; box-shadow: 0 6px 0 #555;
+            margin-bottom: 20px; animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        
+        .letter-grid {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 800px; padding: 20px;
+        }
+        .letter-btn {
+            width: 120px; height: 120px; font-size: 3.5rem; font-weight: bold; background: #FFF;
+            border: 6px solid #333; border-radius: 20px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 8px 0 #555; transition: transform 0.1s, box-shadow 0.1s, background 0.3s;
+            font-family: inherit;
+        }
+        .letter-btn:active { transform: translateY(8px); box-shadow: 0 0 0 #555; }
+        .letter-btn.correct { background: #5FFF5F; color: white; border-color: #006400; box-shadow: 0 8px 0 #004d00; }
+        .letter-btn.wrong { background: #FF5F5F; color: white; border-color: #8B0000; box-shadow: 0 8px 0 #660000; }
+
+        /* Super Dog SVG container */
+        .dog-svg-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .dog-svg-container svg { width: 180px; height: 180px; }
+        .dog-bounce { animation: dogBounce 0.6s ease-in-out infinite; }
+        @keyframes dogBounce { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-12px) scale(1.05)} }
+        
+        /* Villain container */
+        .villain-svg-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .villain-svg-container svg { width: 180px; height: 180px; }
+
+        /* Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(-50%); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(calc(-50% - 10px)); }
+            20%, 40%, 60%, 80% { transform: translateX(calc(-50% + 10px)); }
+        }
+        .anim-shake { animation: shake 0.5s; }
+
+        @keyframes cheer {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-20px); }
+        }
+        .anim-cheer { animation: cheer 0.5s ease-in-out infinite; }
+
+        /* Cutscene Screen */
+        #cutscene-screen { background: #000; overflow: hidden; position: relative; }
+        #cutscene-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: background 3s; }
+        #city-bg { position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: #1a1a2e; border-top: 2px solid #16213e; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 10%; transition: transform 5s ease-in; z-index: 1;}
+        .building { background: #0f3460; width: 15%; height: 100%; border: 2px solid #000; border-bottom: none; position: relative;}
+        .building:nth-child(2) { height: 120%; }
+        .building:nth-child(3) { height: 80%; }
+        .window { position: absolute; width: 20%; height: 10%; background: #e94560; border: 1px solid #000; }
+        .window.w1 { top: 10%; left: 20%; } .window.w2 { top: 30%; right: 20%; } .window.w3 { top: 50%; left: 20%; } .window.w4 { top: 70%; right: 20%; }
+
+        #rocket {
+            position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
+            width: 100px; height: 160px; z-index: 10;
+            transition: bottom 5s ease-in, transform 2s;
+        }
+        .rocket-body {
+            position: absolute; top: 0; left: 20%; width: 60%; height: 80%; background: #E0E0E0;
+            border-radius: 50% 50% 10% 10%; border: 3px solid #333; z-index: 2; overflow: hidden;
+        }
+        .rocket-nose {
+            position: absolute; top: -15%; left: 20%; width: 60%; height: 30%; background: #F44336;
+            clip-path: polygon(50% 0%, 100% 100%, 0% 100%); z-index: 3;
+        }
+        .rocket-fin {
+            position: absolute; bottom: 10%; width: 30%; height: 40%; background: #F44336; border: 3px solid #333; z-index: 1;
+        }
+        .rocket-fin.left { left: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+        .rocket-fin.right { right: 0; clip-path: polygon(0 0, 0 100%, 100% 100%); }
+        .rocket-window {
+            position: absolute; top: 30%; left: 50%; transform: translateX(-50%); width: 40px; height: 40px;
+            background: #81D4FA; border-radius: 50%; border: 4px solid #333; z-index: 3; display: flex; justify-content: center; align-items: center; overflow: hidden;
+        }
+        .rocket-window-hero { font-size: 20px; }
+        
+        #exhaust {
+            position: absolute; bottom: -30%; left: 50%; transform: translateX(-50%);
+            width: 40%; height: 50%; background: #FF9800; border-radius: 50%;
+            z-index: 1; display: none; animation: flicker 0.1s infinite;
+        }
+        @keyframes flicker {
+            0% { transform: translateX(-50%) scale(1); background: #FF9800; }
+            50% { transform: translateX(-50%) scale(1.1); background: #FFEB3B; }
+            100% { transform: translateX(-50%) scale(1); background: #FF5722; }
+        }
+
+        #countdown {
+            position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 10rem; color: white; font-weight: bold; text-shadow: 0 0 20px #F44336;
+            z-index: 20; display: none;
+        }
+        
+        #stars { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 0; display: none; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: twinkle 1s infinite alternate; }
+        @keyframes twinkle { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        /* Sun globe */
+        #the-sun {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 120px; height: 120px;
+            background: radial-gradient(circle at 35% 35%, #FFF176 0%, #FFEB3B 20%, #FF9800 50%, #F44336 80%, #b71c1c 100%);
+            border-radius: 50%; z-index: 5; display: none;
+            box-shadow: 0 0 40px #FF9800, 0 0 80px #FF6600, 0 0 120px rgba(255,87,34,0.4);
+            animation: sunPulse 2s ease-in-out infinite;
+        }
+        @keyframes sunPulse { 0%,100%{box-shadow:0 0 40px #FF9800,0 0 80px #FF6600} 50%{box-shadow:0 0 60px #FFEB3B,0 0 100px #FF9800} }
+        /* Sun corona flares */
+        .sun-flare {
+            position: absolute; background: rgba(255,152,0,0.3); border-radius: 50%;
+            top: 50%; left: 50%; transform: translate(-50%,-50%);
+        }
+        
+        /* Rocket orbit around sun */
+        #orbit-container {
+            position: absolute; top: 50%; left: 50%;
+            width: 400px; height: 400px;
+            transform: translate(-50%, -50%);
+            z-index: 8; display: none;
+        }
+        .orbiting {
+            animation: orbitSun 4s linear 1 forwards;
+        }
+        @keyframes orbitSun {
+            0%   { transform: translate(-50%,-50%) rotate(0deg); }
+            100% { transform: translate(-50%,-50%) rotate(360deg); }
+        }
+        #orbit-rocket {
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            font-size: 3rem;
+        }
+        
+        /* Earth for landing */
+        #earth-landing {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 45%;
+            background: linear-gradient(180deg, #87CEEB 0%, #87CEEB 30%, #4CAF50 30%, #388E3C 100%);
+            z-index: 1; display: none;
+        }
+        .earth-cloud { position: absolute; background: white; border-radius: 50px; opacity: 0.8; }
+        .earth-tree { position: absolute; bottom: 0; font-size: 2rem; }
+        
+        /* Landing rocket */
+        #landing-rocket {
+            position: absolute; z-index: 10; display: none;
+            transition: all 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .landing-caption {
+            position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
+            color: #FFF; font-size: clamp(1.5rem,4vw,2.5rem); font-weight: bold;
+            text-shadow: 0 0 15px rgba(0,0,0,0.8); z-index: 20; text-align: center;
+            display: none; white-space: nowrap;
+        }
+        .burning-feet { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); color: #FFF; font-size: 3rem; font-weight: bold; animation: shake 0.5s infinite; text-shadow: 0 0 10px #000, 3px 3px 0 #F00; z-index: 20; display: none; text-align: center; }
+
+        #win-msg {
+            position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+            font-size: 5rem; color: #FFD700; text-shadow: 0 0 20px #FF9800;
+            z-index: 20; display: none; text-align: center;
+        }
+        #play-again-btn {
+            position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%);
+            font-size: 2rem; padding: 15px 40px; background: #4CAF50; color: white;
+            border: 4px solid #fff; border-radius: 40px; cursor: pointer; display: none; z-index: 20;
+        }
+
+    </style>
+</head>
+<body>
+    <a href="/" id="home-btn">🏠</a>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen active">
+        <h1 class="title">Hero Letters!</h1>
+        <p class="instructions">Listen to the letter and tap it to save the day! Join the Super Dogs & Super Boy on a rocket to space!</p>
+        <button id="play-btn" class="btn">PLAY 🚀</button>
+    </div>
+
+    <!-- Action Overlay -->
+    <div id="action-overlay">
+        <!-- Night sky stars -->
+        <div id="action-moon"></div>
+        <!-- City backdrop -->
+        <div id="action-city">
+            <!-- Buildings -->
+            <div class="action-building" style="left:2%; width:12%; height:55%; background:linear-gradient(180deg,#1a237e,#283593);">
+                <div class="action-window" style="top:10%;left:20%"></div><div class="action-window" style="top:10%;right:20%"></div>
+                <div class="action-window" style="top:30%;left:20%"></div><div class="action-window" style="top:30%;right:20%"></div>
+                <div class="action-window" style="top:50%;left:20%"></div><div class="action-window" style="top:50%;right:20%"></div>
+                <div class="action-window" style="top:70%;left:20%"></div><div class="action-window" style="top:70%;right:20%"></div>
+            </div>
+            <div class="action-building" style="left:16%; width:10%; height:70%; background:linear-gradient(180deg,#0d47a1,#1565c0);">
+                <div class="action-window" style="top:8%;left:25%"></div><div class="action-window" style="top:8%;right:25%"></div>
+                <div class="action-window" style="top:25%;left:25%"></div><div class="action-window" style="top:25%;right:25%"></div>
+                <div class="action-window" style="top:42%;left:25%"></div><div class="action-window" style="top:58%;right:25%"></div>
+                <div class="action-window" style="top:75%;left:25%"></div><div class="action-window" style="top:75%;right:25%"></div>
+            </div>
+            <div class="action-building" style="left:28%; width:14%; height:45%; background:linear-gradient(180deg,#4a148c,#6a1b9a);">
+                <div class="action-window" style="top:15%;left:18%"></div><div class="action-window" style="top:15%;right:18%"></div>
+                <div class="action-window" style="top:45%;left:18%"></div><div class="action-window" style="top:45%;right:18%"></div>
+                <div class="action-window" style="top:75%;left:18%"></div><div class="action-window" style="top:75%;right:18%"></div>
+            </div>
+            <div class="action-building" style="left:44%; width:11%; height:60%; background:linear-gradient(180deg,#1b5e20,#2e7d32);">
+                <div class="action-window" style="top:12%;left:22%"></div><div class="action-window" style="top:12%;right:22%"></div>
+                <div class="action-window" style="top:35%;left:22%"></div><div class="action-window" style="top:55%;right:22%"></div>
+                <div class="action-window" style="top:78%;left:22%"></div><div class="action-window" style="top:78%;right:22%"></div>
+            </div>
+            <div class="action-building" style="left:57%; width:15%; height:50%; background:linear-gradient(180deg,#bf360c,#e64a19);">
+                <div class="action-window" style="top:10%;left:15%"></div><div class="action-window" style="top:10%;left:45%"></div><div class="action-window" style="top:10%;right:15%"></div>
+                <div class="action-window" style="top:40%;left:15%"></div><div class="action-window" style="top:40%;right:15%"></div>
+                <div class="action-window" style="top:70%;left:15%"></div><div class="action-window" style="top:70%;left:45%"></div><div class="action-window" style="top:70%;right:15%"></div>
+            </div>
+            <div class="action-building" style="left:74%; width:12%; height:65%; background:linear-gradient(180deg,#311b92,#4527a0);">
+                <div class="action-window" style="top:8%;left:20%"></div><div class="action-window" style="top:8%;right:20%"></div>
+                <div class="action-window" style="top:28%;left:20%"></div><div class="action-window" style="top:28%;right:20%"></div>
+                <div class="action-window" style="top:48%;left:20%"></div><div class="action-window" style="top:48%;right:20%"></div>
+                <div class="action-window" style="top:68%;left:20%"></div><div class="action-window" style="top:68%;right:20%"></div>
+            </div>
+            <div class="action-building" style="left:88%; width:11%; height:40%; background:linear-gradient(180deg,#004d40,#00695c);">
+                <div class="action-window" style="top:15%;left:25%"></div><div class="action-window" style="top:15%;right:25%"></div>
+                <div class="action-window" style="top:50%;left:25%"></div><div class="action-window" style="top:50%;right:25%"></div>
+            </div>
+            <div class="action-sidewalk"></div>
+            <div class="action-ground"></div>
+        </div>
+        
+        <!-- Robber SVG -->
+        <div id="action-robber"></div>
+        
+        <!-- Dogmobile SVG -->
+        <div id="action-dogmobile"></div>
+        
+        <!-- Super Dog jumping out -->
+        <div id="action-superdog"></div>
+        
+        <!-- Super Boy jumping out -->
+        <div id="action-superboy"></div>
+        
+        <!-- Capture effect -->
+        <div id="action-capture-fx">
+            <div class="starburst"></div>
+            <span id="capture-text">POW!</span>
+        </div>
+        
+        <!-- Message box -->
+        <div id="action-message" style="position:absolute; top:10%; left:50%; transform:translateX(-50%); font-size:2rem; font-weight:bold; color:white; text-shadow:2px 2px 4px #000; background:rgba(0,0,0,0.5); padding:10px 30px; border-radius:15px; border:3px solid white; z-index:20;"></div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div class="top-bar">Stars: <span id="score-display">0</span> / 10 ⭐</div>
+        
+        <div class="prompt-area">
+            <div id="speaker-btn" class="speaker-btn">🔊</div>
+            <h2 style="font-size: 2rem; color: #333; text-shadow: 1px 1px 0 #fff;">Tap the letter you hear!</h2>
+        </div>
+
+        <div id="letter-grid" class="letter-grid">
+            <!-- Buttons generated by JS -->
+        </div>
+    </div>
+
+    <!-- Cutscene Screen -->
+    <div id="cutscene-screen" class="screen">
+        <div id="cutscene-bg"></div>
+        <div id="stars"></div>
+        
+        <div id="city-bg">
+            <div class="building"><div class="window w1"></div><div class="window w2"></div><div class="window w3"></div></div>
+            <div class="building"><div class="window w2"></div><div class="window w4"></div></div>
+            <div class="building"><div class="window w1"></div><div class="window w3"></div><div class="window w4"></div></div>
+        </div>
+
+        <div id="rocket">
+            <div class="rocket-nose"></div>
+            <div class="rocket-body">
+                <div class="rocket-window"><span class="rocket-window-hero" id="rocket-hero">🐕</span></div>
+            </div>
+            <div class="rocket-fin left"></div>
+            <div class="rocket-fin right"></div>
+            <div id="exhaust"></div>
+        </div>
+
+        <!-- Sun for orbit scene -->
+        <div id="the-sun">
+            <div class="sun-flare" style="width:160%;height:160%;opacity:0.2;"></div>
+            <div class="sun-flare" style="width:140%;height:140%;opacity:0.15;"></div>
+        </div>
+        
+        <!-- Orbit container -->
+        <div id="orbit-container">
+            <div id="orbit-rocket">🚀</div>
+        </div>
+        
+        <!-- Earth landing scene -->
+        <div id="earth-landing"></div>
+        
+        <!-- Landing rocket -->
+        <div id="landing-rocket">🚀</div>
+
+        <div id="countdown">3</div>
+        <div class="landing-caption" id="caption1">🐕🦸‍♂️ The Super Dogs & Super Boy are driving the rocket!</div>
+        <div class="landing-caption" id="caption2">☀️ Approaching the Sun!</div>
+        <div class="landing-caption" id="caption3">🔥 HOT HOT HOT! 🔥</div>
+        <div class="landing-caption" id="caption4">🌍 Heading back to Earth!</div>
+        <div class="landing-caption" id="caption5">🎉 SAFE LANDING!</div>
+        <div class="burning-feet" id="burning-feet">OUCH! OUR FEET<br>ARE BURNING! 🔥🦶🔥</div>
+        <div id="win-msg">YOU WIN!<br>THE SUPER DOGS & SUPER BOY<br>BROUGHT EVERYONE HOME! 🐕🦸‍♂️🐾</div>
+        <button id="play-again-btn" class="btn">Play Again</button>
+    </div>
+
+    <script>
+        // Game Logic
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        let score = 0;
+        const targetScore = 10;
+        let currentTarget = "";
+        let audioCtx;
+
+        // SVG Super Dogs
+        function ratTerrierSVG() {
+            return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <!-- Cape -->
+                <path d="M60,95 Q40,130 35,170 L165,170 Q160,130 140,95" fill="#D32F2F" stroke="#8B0000" stroke-width="2"/>
+                <path d="M60,95 Q40,130 30,175 L40,170 Q45,130 62,97" fill="#FF5252" stroke="none"/>
+                <!-- Body -->
+                <ellipse cx="100" cy="130" rx="45" ry="35" fill="#F5DEB3" stroke="#333" stroke-width="2"/>
+                <!-- Chest patch -->
+                <ellipse cx="100" cy="125" rx="20" ry="18" fill="#FFF8E7" stroke="none"/>
+                <!-- Star emblem on chest -->
+                <polygon points="100,112 103,120 111,120 105,125 107,133 100,128 93,133 95,125 89,120 97,120" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
+                <!-- Front legs -->
+                <rect x="72" y="155" width="12" height="30" rx="5" fill="#F5DEB3" stroke="#333" stroke-width="2"/>
+                <rect x="116" y="155" width="12" height="30" rx="5" fill="#F5DEB3" stroke="#333" stroke-width="2"/>
+                <!-- Paws -->
+                <ellipse cx="78" cy="187" rx="8" ry="5" fill="#F5DEB3" stroke="#333" stroke-width="2"/>
+                <ellipse cx="122" cy="187" rx="8" ry="5" fill="#F5DEB3" stroke="#333" stroke-width="2"/>
+                <!-- Head -->
+                <ellipse cx="100" cy="70" rx="32" ry="28" fill="#F5DEB3" stroke="#333" stroke-width="2"/>
+                <!-- Brown patches -->
+                <ellipse cx="85" cy="60" rx="15" ry="12" fill="#8B4513" stroke="none"/>
+                <ellipse cx="115" cy="62" rx="12" ry="10" fill="#8B4513" stroke="none"/>
+                <!-- Ears (pointy rat terrier ears) -->
+                <path d="M72,55 L60,20 L82,48" fill="#8B4513" stroke="#333" stroke-width="2"/>
+                <path d="M70,53 L62,25 L80,48" fill="#FFB6C1" stroke="none"/>
+                <path d="M128,55 L140,20 L118,48" fill="#8B4513" stroke="#333" stroke-width="2"/>
+                <path d="M130,53 L138,25 L120,48" fill="#FFB6C1" stroke="none"/>
+                <!-- Eyes -->
+                <circle cx="88" cy="68" r="7" fill="white" stroke="#333" stroke-width="2"/>
+                <circle cx="112" cy="68" r="7" fill="white" stroke="#333" stroke-width="2"/>
+                <circle cx="90" cy="67" r="4" fill="#4A2800"/>
+                <circle cx="114" cy="67" r="4" fill="#4A2800"/>
+                <circle cx="91" cy="65" r="1.5" fill="white"/>
+                <circle cx="115" cy="65" r="1.5" fill="white"/>
+                <!-- Nose -->
+                <ellipse cx="100" cy="80" rx="5" ry="4" fill="#333"/>
+                <!-- Mouth -->
+                <path d="M95,84 Q100,90 105,84" fill="none" stroke="#333" stroke-width="1.5"/>
+                <!-- Happy tongue -->
+                <ellipse cx="100" cy="89" rx="4" ry="5" fill="#FF6B8A" stroke="#E05070" stroke-width="1"/>
+                <!-- Tail (wagging) -->
+                <path d="M145,120 Q165,100 160,80" fill="none" stroke="#8B4513" stroke-width="5" stroke-linecap="round">
+                    <animateTransform attributeName="transform" type="rotate" values="-10,145,120;10,145,120;-10,145,120" dur="0.4s" repeatCount="indefinite"/>
+                </path>
+            </svg>`;
+        }
+
+        function schnauzerSVG() {
+            return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <!-- Cape -->
+                <path d="M55,95 Q35,130 30,170 L170,170 Q165,130 145,95" fill="#1565C0" stroke="#0D47A1" stroke-width="2"/>
+                <path d="M55,95 Q35,130 25,175 L35,170 Q40,130 57,97" fill="#42A5F5" stroke="none"/>
+                <!-- Body -->
+                <ellipse cx="100" cy="130" rx="48" ry="38" fill="#9E9E9E" stroke="#333" stroke-width="2"/>
+                <!-- Chest -->
+                <ellipse cx="100" cy="125" rx="22" ry="20" fill="#BDBDBD" stroke="none"/>
+                <!-- Star emblem -->
+                <polygon points="100,110 103,118 111,118 105,123 107,131 100,126 93,131 95,123 89,118 97,118" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
+                <!-- Front legs -->
+                <rect x="68" y="158" width="14" height="28" rx="6" fill="#9E9E9E" stroke="#333" stroke-width="2"/>
+                <rect x="118" y="158" width="14" height="28" rx="6" fill="#9E9E9E" stroke="#333" stroke-width="2"/>
+                <!-- Paws -->
+                <ellipse cx="75" cy="188" rx="9" ry="5" fill="#9E9E9E" stroke="#333" stroke-width="2"/>
+                <ellipse cx="125" cy="188" rx="9" ry="5" fill="#9E9E9E" stroke="#333" stroke-width="2"/>
+                <!-- Head -->
+                <ellipse cx="100" cy="65" rx="35" ry="30" fill="#9E9E9E" stroke="#333" stroke-width="2"/>
+                <!-- Schnauzer eyebrows (bushy) -->
+                <path d="M78,52 Q82,46 92,50" fill="#757575" stroke="#555" stroke-width="2"/>
+                <path d="M108,50 Q118,46 122,52" fill="#757575" stroke="#555" stroke-width="2"/>
+                <!-- Ears (folded schnauzer ears) -->
+                <path d="M68,50 Q58,30 65,45 L72,55" fill="#757575" stroke="#333" stroke-width="2"/>
+                <path d="M132,50 Q142,30 135,45 L128,55" fill="#757575" stroke="#333" stroke-width="2"/>
+                <!-- Eyes -->
+                <circle cx="86" cy="60" r="7" fill="white" stroke="#333" stroke-width="2"/>
+                <circle cx="114" cy="60" r="7" fill="white" stroke="#333" stroke-width="2"/>
+                <circle cx="88" cy="59" r="4" fill="#2E1A00"/>
+                <circle cx="116" cy="59" r="4" fill="#2E1A00"/>
+                <circle cx="89" cy="57" r="1.5" fill="white"/>
+                <circle cx="117" cy="57" r="1.5" fill="white"/>
+                <!-- Schnauzer beard/muzzle -->
+                <ellipse cx="100" cy="82" rx="22" ry="16" fill="#BDBDBD" stroke="#333" stroke-width="2"/>
+                <!-- Mustache -->
+                <path d="M82,78 Q90,82 100,76 Q110,82 118,78" fill="#757575" stroke="#555" stroke-width="1.5"/>
+                <!-- Nose -->
+                <ellipse cx="100" cy="76" rx="6" ry="5" fill="#333"/>
+                <!-- Mouth -->
+                <path d="M93,84 Q100,90 107,84" fill="none" stroke="#333" stroke-width="1.5"/>
+                <!-- Happy tongue -->
+                <ellipse cx="100" cy="89" rx="4" ry="5" fill="#FF6B8A" stroke="#E05070" stroke-width="1"/>
+                <!-- Tail -->
+                <path d="M148,118 Q170,100 162,78" fill="none" stroke="#757575" stroke-width="6" stroke-linecap="round">
+                    <animateTransform attributeName="transform" type="rotate" values="-8,148,118;8,148,118;-8,148,118" dur="0.5s" repeatCount="indefinite"/>
+                </path>
+            </svg>`;
+        }
+
+        function villainSVG() {
+            return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <!-- Dark cape/cloak -->
+                <path d="M50,80 Q30,130 25,190 L175,190 Q170,130 150,80" fill="#2C2C2C" stroke="#111" stroke-width="2"/>
+                <!-- Body -->
+                <ellipse cx="100" cy="130" rx="42" ry="40" fill="#4A0E4E" stroke="#333" stroke-width="2"/>
+                <!-- Skull emblem -->
+                <circle cx="100" cy="122" r="10" fill="#E0E0E0" stroke="#333" stroke-width="1.5"/>
+                <rect x="96" y="130" width="8" height="8" rx="1" fill="#E0E0E0" stroke="#333" stroke-width="1"/>
+                <circle cx="95" cy="120" r="2.5" fill="#333"/>
+                <circle cx="105" cy="120" r="2.5" fill="#333"/>
+                <path d="M94,126 L96,128 L98,126 L100,128 L102,126 L104,128 L106,126" fill="none" stroke="#333" stroke-width="1"/>
+                <!-- Head -->
+                <ellipse cx="100" cy="60" rx="32" ry="30" fill="#7B1FA2" stroke="#333" stroke-width="2"/>
+                <!-- Evil hood -->
+                <path d="M68,60 Q70,20 100,10 Q130,20 132,60" fill="#2C2C2C" stroke="#333" stroke-width="2"/>
+                <path d="M68,60 Q70,25 100,15 Q130,25 132,60" fill="none" stroke="#444" stroke-width="1"/>
+                <!-- Glowing eyes -->
+                <ellipse cx="86" cy="58" rx="9" ry="7" fill="#1A1A1A" stroke="#333" stroke-width="1.5"/>
+                <ellipse cx="114" cy="58" rx="9" ry="7" fill="#1A1A1A" stroke="#333" stroke-width="1.5"/>
+                <ellipse cx="86" cy="58" rx="5" ry="4" fill="#FF1744"/>
+                <ellipse cx="114" cy="58" rx="5" ry="4" fill="#FF1744"/>
+                <ellipse cx="84" cy="56" rx="2" ry="1.5" fill="#FF8A80"/>
+                <ellipse cx="112" cy="56" rx="2" ry="1.5" fill="#FF8A80"/>
+                <!-- Evil grin -->
+                <path d="M85,75 Q92,70 100,78 Q108,70 115,75" fill="#1A1A1A" stroke="#333" stroke-width="1.5"/>
+                <path d="M88,75 L90,72 L93,75" fill="#FFF" stroke="none"/>
+                <path d="M107,75 L110,72 L112,75" fill="#FFF" stroke="none"/>
+                <!-- Hands/claws -->
+                <path d="M55,150 L40,145 L38,140 L42,142 L40,136 L44,140 L43,134 L47,140 L50,145" fill="#7B1FA2" stroke="#333" stroke-width="1.5"/>
+                <path d="M145,150 L160,145 L162,140 L158,142 L160,136 L156,140 L157,134 L153,140 L150,145" fill="#7B1FA2" stroke="#333" stroke-width="1.5"/>
+            </svg>`;
+        }
+
+        const superDogs = [
+            { name: "Super Rat Terrier!", svgFn: ratTerrierSVG, emoji: '🐕' },
+            { name: "Super Schnauzer!", svgFn: schnauzerSVG, emoji: '🐾' }
+        ];
+
+        const badGuys = [
+            { name: "The Villain" }
+        ];
+
+        // Intro scene SVGs
+        function robberSVG() {
+            return `<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Shadow -->
+                <ellipse cx="50" cy="138" rx="30" ry="4" fill="rgba(0,0,0,0.3)"/>
+                <!-- Legs (sneaking pose) -->
+                <rect x="32" y="95" width="12" height="35" rx="5" fill="#333" stroke="#222" stroke-width="1.5" transform="rotate(-8,38,95)"/>
+                <rect x="55" y="95" width="12" height="35" rx="5" fill="#333" stroke="#222" stroke-width="1.5" transform="rotate(8,61,95)"/>
+                <!-- Shoes -->
+                <ellipse cx="35" cy="132" rx="10" ry="5" fill="#222" stroke="#111" stroke-width="1"/>
+                <ellipse cx="65" cy="132" rx="10" ry="5" fill="#222" stroke="#111" stroke-width="1"/>
+                <!-- Body (striped shirt) -->
+                <rect x="28" y="52" width="44" height="48" rx="8" fill="#333" stroke="#222" stroke-width="1.5"/>
+                <rect x="28" y="58" width="44" height="6" rx="0" fill="#EEE" opacity="0.9"/>
+                <rect x="28" y="70" width="44" height="6" rx="0" fill="#EEE" opacity="0.9"/>
+                <rect x="28" y="82" width="44" height="6" rx="0" fill="#EEE" opacity="0.9"/>
+                <rect x="28" y="94" width="44" height="4" rx="0" fill="#EEE" opacity="0.9"/>
+                <!-- Arms -->
+                <rect x="14" y="58" width="14" height="8" rx="4" fill="#FFCCAA" stroke="#333" stroke-width="1"/>
+                <rect x="72" y="55" width="14" height="8" rx="4" fill="#FFCCAA" stroke="#333" stroke-width="1" transform="rotate(-15,79,59)"/>
+                <!-- Money bag in hand -->
+                <g transform="translate(74,38) rotate(-10)">
+                    <path d="M0,20 Q0,0 15,0 Q30,0 30,20 L28,35 Q15,38 2,35 Z" fill="#C8B560" stroke="#8B7D3C" stroke-width="1.5"/>
+                    <path d="M8,-2 Q15,-8 22,-2" fill="none" stroke="#8B7D3C" stroke-width="2"/>
+                    <text x="15" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#5D4E1F">$</text>
+                </g>
+                <!-- Head -->
+                <ellipse cx="50" cy="35" rx="22" ry="20" fill="#FFCCAA" stroke="#333" stroke-width="1.5"/>
+                <!-- Beanie hat -->
+                <path d="M28,32 Q28,10 50,8 Q72,10 72,32" fill="#222" stroke="#111" stroke-width="1.5"/>
+                <rect x="26" y="30" width="48" height="6" rx="3" fill="#444" stroke="#333" stroke-width="1"/>
+                <!-- Eye mask -->
+                <rect x="32" y="28" width="36" height="12" rx="6" fill="#111" stroke="#000" stroke-width="1"/>
+                <!-- Eyes (shifty) -->
+                <ellipse cx="42" cy="33" rx="4" ry="4" fill="white"/>
+                <circle cx="44" cy="33" r="2.5" fill="#333"/>
+                <ellipse cx="58" cy="33" rx="4" ry="4" fill="white"/>
+                <circle cx="60" cy="33" r="2.5" fill="#333"/>
+                <!-- Stubble -->
+                <circle cx="40" cy="44" r="0.8" fill="#999"/><circle cx="44" cy="46" r="0.8" fill="#999"/>
+                <circle cx="50" cy="47" r="0.8" fill="#999"/><circle cx="56" cy="46" r="0.8" fill="#999"/>
+                <circle cx="60" cy="44" r="0.8" fill="#999"/>
+                <!-- Smirk -->
+                <path d="M42,44 Q50,50 60,43" fill="none" stroke="#333" stroke-width="1.5"/>
+            </svg>`;
+        }
+
+        function dogmobileSVG() {
+            return `<svg viewBox="0 0 280 120" xmlns="http://www.w3.org/2000/svg">
+                <!-- Shadow -->
+                <ellipse cx="140" cy="115" rx="120" ry="8" fill="rgba(0,0,0,0.25)"/>
+                <!-- Main body -->
+                <path d="M30,85 L30,60 Q30,50 40,48 L90,42 Q100,35 120,30 L180,28 Q200,28 210,35 L240,42 Q250,45 255,50 L260,60 L260,85" 
+                    fill="#1a1a2e" stroke="#0a0a1a" stroke-width="2"/>
+                <!-- Body shine -->
+                <path d="M35,65 L90,45 Q100,38 120,33 L175,31" fill="none" stroke="#3a3a5e" stroke-width="1.5" opacity="0.6"/>
+                <!-- Windshield -->
+                <path d="M95,42 L110,30 L165,28 L180,35 L180,42 Z" fill="#4FC3F7" stroke="#0a0a1a" stroke-width="1.5" opacity="0.8"/>
+                <path d="M100,40 L112,32 L155,30 L165,35" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+                <!-- Dog silhouette in window -->
+                <g transform="translate(125,28)">
+                    <ellipse cx="0" cy="8" rx="7" ry="5" fill="#333"/>
+                    <ellipse cx="0" cy="2" rx="5" ry="4.5" fill="#333"/>
+                    <path d="M-4,0 L-7,-5 L-2,-2" fill="#333"/>
+                    <path d="M4,0 L7,-5 L2,-2" fill="#333"/>
+                </g>
+                <!-- Boy silhouette in window -->
+                <g transform="translate(142,28)">
+                    <ellipse cx="0" cy="8" rx="6" ry="5" fill="#333"/>
+                    <circle cx="0" cy="1" r="5" fill="#333"/>
+                    <path d="M-5,-1 Q-5,-6 0,-7 Q5,-6 5,-1" fill="#333"/>
+                </g>
+                <!-- Side panel details -->
+                <rect x="60" y="55" width="45" height="20" rx="3" fill="#16213e" stroke="#0a0a1a" stroke-width="1"/>
+                <rect x="115" y="55" width="45" height="20" rx="3" fill="#16213e" stroke="#0a0a1a" stroke-width="1"/>
+                <rect x="170" y="50" width="45" height="25" rx="3" fill="#16213e" stroke="#0a0a1a" stroke-width="1"/>
+                <!-- Paw emblem on door -->
+                <g transform="translate(137,62)">
+                    <ellipse cx="0" cy="3" rx="5" ry="4" fill="#FFD700"/>
+                    <circle cx="-3" cy="-2" r="2" fill="#FFD700"/>
+                    <circle cx="3" cy="-2" r="2" fill="#FFD700"/>
+                    <circle cx="-5" cy="1" r="1.5" fill="#FFD700"/>
+                    <circle cx="5" cy="1" r="1.5" fill="#FFD700"/>
+                </g>
+                <!-- Front bumper -->
+                <rect x="22" y="78" width="20" height="10" rx="4" fill="#333" stroke="#222" stroke-width="1"/>
+                <!-- Rear bumper -->
+                <rect x="248" y="78" width="18" height="10" rx="4" fill="#333" stroke="#222" stroke-width="1"/>
+                <!-- Headlights -->
+                <ellipse cx="27" cy="68" rx="6" ry="8" fill="#FFEB3B" stroke="#F9A825" stroke-width="1.5"/>
+                <ellipse cx="27" cy="68" rx="3" ry="5" fill="#FFF9C4"/>
+                <!-- Light beam -->
+                <path d="M21,60 L5,50 L5,86 L21,76" fill="rgba(255,235,59,0.15)" stroke="none"/>
+                <!-- Tail lights -->
+                <ellipse cx="262" cy="70" rx="4" ry="6" fill="#F44336" stroke="#B71C1C" stroke-width="1"/>
+                <!-- Front wheel -->
+                <g transform="translate(65,90)">
+                    <circle cx="0" cy="0" r="18" fill="#333" stroke="#222" stroke-width="2"/>
+                    <circle cx="0" cy="0" r="12" fill="#555" stroke="#444" stroke-width="1"/>
+                    <circle cx="0" cy="0" r="4" fill="#888"/>
+                    <line x1="-10" y1="0" x2="10" y2="0" stroke="#777" stroke-width="1.5"/>
+                    <line x1="0" y1="-10" x2="0" y2="10" stroke="#777" stroke-width="1.5"/>
+                    <line x1="-7" y1="-7" x2="7" y2="7" stroke="#777" stroke-width="1"/>
+                    <line x1="7" y1="-7" x2="-7" y2="7" stroke="#777" stroke-width="1"/>
+                </g>
+                <!-- Rear wheel -->
+                <g transform="translate(215,90)">
+                    <circle cx="0" cy="0" r="18" fill="#333" stroke="#222" stroke-width="2"/>
+                    <circle cx="0" cy="0" r="12" fill="#555" stroke="#444" stroke-width="1"/>
+                    <circle cx="0" cy="0" r="4" fill="#888"/>
+                    <line x1="-10" y1="0" x2="10" y2="0" stroke="#777" stroke-width="1.5"/>
+                    <line x1="0" y1="-10" x2="0" y2="10" stroke="#777" stroke-width="1.5"/>
+                    <line x1="-7" y1="-7" x2="7" y2="7" stroke="#777" stroke-width="1"/>
+                    <line x1="7" y1="-7" x2="-7" y2="7" stroke="#777" stroke-width="1"/>
+                </g>
+                <!-- Wheel arches -->
+                <path d="M43,85 Q45,70 65,65 Q85,70 87,85" fill="#1a1a2e" stroke="#0a0a1a" stroke-width="1.5"/>
+                <path d="M193,85 Q195,70 215,65 Q235,70 237,85" fill="#1a1a2e" stroke="#0a0a1a" stroke-width="1.5"/>
+                <!-- Fin on back -->
+                <path d="M250,48 L265,30 L265,48" fill="#1a1a2e" stroke="#0a0a1a" stroke-width="1.5"/>
+                <!-- Exhaust flame -->
+                <g transform="translate(268,80)">
+                    <ellipse cx="8" cy="0" rx="10" ry="5" fill="#FF9800" opacity="0.7">
+                        <animate attributeName="rx" values="8;12;8" dur="0.2s" repeatCount="indefinite"/>
+                    </ellipse>
+                    <ellipse cx="6" cy="0" rx="6" ry="3" fill="#FFEB3B" opacity="0.8">
+                        <animate attributeName="rx" values="5;8;5" dur="0.15s" repeatCount="indefinite"/>
+                    </ellipse>
+                </g>
+            </svg>`;
+        }
+
+        function jumpingDogSVG() {
+            return `<svg viewBox="0 0 130 130" xmlns="http://www.w3.org/2000/svg">
+                <!-- Cape flowing behind -->
+                <path d="M55,55 Q20,70 10,100 L30,95 Q35,75 50,60" fill="#D32F2F" stroke="#8B0000" stroke-width="1.5"/>
+                <path d="M75,55 Q110,70 120,100 L100,95 Q95,75 80,60" fill="#D32F2F" stroke="#8B0000" stroke-width="1.5"/>
+                <!-- Body (stretched, jumping pose) -->
+                <ellipse cx="65" cy="65" rx="30" ry="22" fill="#F5DEB3" stroke="#333" stroke-width="2" transform="rotate(-15,65,65)"/>
+                <!-- Chest -->
+                <ellipse cx="60" cy="60" rx="14" ry="12" fill="#FFF8E7" stroke="none"/>
+                <!-- Star emblem -->
+                <polygon points="60,52 62,57 67,57 63,60 64,65 60,62 56,65 57,60 53,57 58,57" fill="#FFD700" stroke="#B8860B" stroke-width="0.8"/>
+                <!-- Back legs (stretched back) -->
+                <rect x="82" y="72" width="10" height="25" rx="4" fill="#F5DEB3" stroke="#333" stroke-width="1.5" transform="rotate(30,87,72)"/>
+                <rect x="90" y="68" width="10" height="25" rx="4" fill="#F5DEB3" stroke="#333" stroke-width="1.5" transform="rotate(40,95,68)"/>
+                <!-- Front legs (stretched forward) -->
+                <rect x="35" y="68" width="10" height="25" rx="4" fill="#F5DEB3" stroke="#333" stroke-width="1.5" transform="rotate(-30,40,68)"/>
+                <rect x="28" y="64" width="10" height="25" rx="4" fill="#F5DEB3" stroke="#333" stroke-width="1.5" transform="rotate(-40,33,64)"/>
+                <!-- Head -->
+                <ellipse cx="42" cy="38" rx="22" ry="20" fill="#F5DEB3" stroke="#333" stroke-width="2"/>
+                <!-- Brown patches -->
+                <ellipse cx="34" cy="30" rx="10" ry="8" fill="#8B4513" stroke="none"/>
+                <ellipse cx="52" cy="32" rx="8" ry="7" fill="#8B4513" stroke="none"/>
+                <!-- Ears (flying back from speed) -->
+                <path d="M28,30 L10,18 L25,35" fill="#8B4513" stroke="#333" stroke-width="1.5"/>
+                <path d="M26,30 L12,20 L24,34" fill="#FFB6C1" stroke="none"/>
+                <path d="M55,28 L72,14 L52,33" fill="#8B4513" stroke="#333" stroke-width="1.5"/>
+                <path d="M54,29 L70,16 L52,32" fill="#FFB6C1" stroke="none"/>
+                <!-- Eyes (determined) -->
+                <circle cx="36" cy="36" r="5" fill="white" stroke="#333" stroke-width="1.5"/>
+                <circle cx="50" cy="35" r="5" fill="white" stroke="#333" stroke-width="1.5"/>
+                <circle cx="38" cy="35" r="3" fill="#4A2800"/>
+                <circle cx="52" cy="34" r="3" fill="#4A2800"/>
+                <!-- Determined eyebrows -->
+                <line x1="30" y1="29" x2="39" y2="31" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                <line x1="47" y1="29" x2="56" y2="27" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                <!-- Nose -->
+                <ellipse cx="40" cy="44" rx="4" ry="3" fill="#333"/>
+                <!-- Open mouth (barking) -->
+                <path d="M34,48 Q40,55 48,48" fill="#FF6B8A" stroke="#333" stroke-width="1.5"/>
+                <path d="M36,48 L44,48" fill="none" stroke="#FFF" stroke-width="1"/>
+                <!-- Speed lines -->
+                <line x1="105" y1="50" x2="125" y2="50" stroke="#FFD700" stroke-width="2" opacity="0.6"/>
+                <line x1="108" y1="60" x2="128" y2="60" stroke="#FFD700" stroke-width="2" opacity="0.5"/>
+                <line x1="105" y1="70" x2="125" y2="70" stroke="#FFD700" stroke-width="2" opacity="0.6"/>
+                <!-- Tail (up, heroic) -->
+                <path d="M95,55 Q108,40 105,28" fill="none" stroke="#8B4513" stroke-width="4" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        function jumpingBoySVG() {
+            return `<svg viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Cape flowing behind -->
+                <path d="M45,50 Q15,70 8,110 L25,105 Q30,75 42,55" fill="#FF6F00" stroke="#E65100" stroke-width="1.5"/>
+                <path d="M75,50 Q105,70 112,110 L95,105 Q90,75 78,55" fill="#FF6F00" stroke="#E65100" stroke-width="1.5"/>
+                <!-- Body (superhero suit) -->
+                <rect x="38" y="52" width="44" height="42" rx="8" fill="#1565C0" stroke="#0D47A1" stroke-width="1.5"/>
+                <!-- Lightning bolt emblem -->
+                <polygon points="60,56 65,66 62,66 67,78 58,68 62,68 57,56" fill="#FFD700" stroke="#F9A825" stroke-width="0.8"/>
+                <!-- Belt -->
+                <rect x="38" y="86" width="44" height="6" rx="2" fill="#FFD700" stroke="#F9A825" stroke-width="1"/>
+                <rect x="56" y="84" width="8" height="10" rx="2" fill="#FFA000" stroke="#E65100" stroke-width="0.8"/>
+                <!-- Legs (running pose) -->
+                <rect x="42" y="92" width="12" height="30" rx="5" fill="#1565C0" stroke="#0D47A1" stroke-width="1.5" transform="rotate(-15,48,92)"/>
+                <rect x="66" y="92" width="12" height="30" rx="5" fill="#1565C0" stroke="#0D47A1" stroke-width="1.5" transform="rotate(20,72,92)"/>
+                <!-- Sneakers -->
+                <ellipse cx="40" cy="124" rx="10" ry="5" fill="#F44336" stroke="#B71C1C" stroke-width="1"/>
+                <path d="M32,122 Q35,118 42,120" fill="white" stroke="none"/>
+                <ellipse cx="80" cy="120" rx="10" ry="5" fill="#F44336" stroke="#B71C1C" stroke-width="1"/>
+                <path d="M72,118 Q75,114 82,116" fill="white" stroke="none"/>
+                <!-- Arms (outstretched, heroic) -->
+                <rect x="18" y="54" width="22" height="9" rx="4" fill="#C68642" stroke="#8D5524" stroke-width="1.5" transform="rotate(-20,29,58)"/>
+                <rect x="80" y="52" width="22" height="9" rx="4" fill="#C68642" stroke="#8D5524" stroke-width="1.5" transform="rotate(15,91,56)"/>
+                <!-- Fists (with gloves) -->
+                <circle cx="17" cy="50" r="6" fill="#1565C0" stroke="#0D47A1" stroke-width="1.5"/>
+                <circle cx="104" cy="50" r="6" fill="#1565C0" stroke="#0D47A1" stroke-width="1.5"/>
+                <!-- Head -->
+                <ellipse cx="60" cy="32" rx="20" ry="22" fill="#C68642" stroke="#8D5524" stroke-width="1.5"/>
+                <!-- Hair (thick, dark, curly) -->
+                <path d="M40,28 Q40,8 60,6 Q80,8 80,28" fill="#1A1A1A" stroke="#111" stroke-width="1"/>
+                <path d="M42,26 Q42,12 55,10" fill="#333" stroke="none"/>
+                <ellipse cx="44" cy="22" rx="5" ry="4" fill="#1A1A1A"/>
+                <ellipse cx="76" cy="22" rx="5" ry="4" fill="#1A1A1A"/>
+                <ellipse cx="60" cy="12" rx="8" ry="4" fill="#1A1A1A"/>
+                <!-- Eyes (big, excited) -->
+                <ellipse cx="52" cy="32" rx="6" ry="6" fill="white" stroke="#333" stroke-width="1.5"/>
+                <ellipse cx="68" cy="32" rx="6" ry="6" fill="white" stroke="#333" stroke-width="1.5"/>
+                <circle cx="54" cy="31" r="3.5" fill="#3E2723"/>
+                <circle cx="70" cy="31" r="3.5" fill="#3E2723"/>
+                <circle cx="55" cy="29" r="1.5" fill="white"/>
+                <circle cx="71" cy="29" r="1.5" fill="white"/>
+                <!-- Eyebrows (determined) -->
+                <line x1="46" y1="24" x2="55" y2="26" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="65" y1="26" x2="74" y2="24" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+                <!-- Nose -->
+                <ellipse cx="60" cy="37" rx="3" ry="2.5" fill="#A0522D" stroke="#8D5524" stroke-width="0.8"/>
+                <!-- Big smile -->
+                <path d="M50,42 Q60,52 70,42" fill="#FF6B8A" stroke="#333" stroke-width="1.5"/>
+                <path d="M52,42 L68,42" fill="none" stroke="white" stroke-width="1.5"/>
+                <!-- Mask (superhero domino mask) -->
+                <path d="M42,30 Q47,26 52,30 Q56,26 60,28 Q64,26 68,30 Q73,26 78,30 Q73,34 68,32 Q64,34 60,32 Q56,34 52,32 Q47,34 42,30" fill="#FF6F00" stroke="#E65100" stroke-width="1"/>
+                <!-- Speed lines -->
+                <line x1="0" y1="55" x2="15" y2="55" stroke="#FFD700" stroke-width="2" opacity="0.6"/>
+                <line x1="2" y1="65" x2="17" y2="65" stroke="#FFD700" stroke-width="2" opacity="0.5"/>
+                <line x1="0" y1="75" x2="15" y2="75" stroke="#FFD700" stroke-width="2" opacity="0.6"/>
+            </svg>`;
+        }
+
+        // Action animation setup
+        function initActionScene() {
+            // Add stars to night sky
+            const scene = document.getElementById('action-overlay');
+            for (let i = 0; i < 30; i++) {
+                let star = document.createElement('div');
+                star.className = 'action-star';
+                star.style.width = (Math.random() * 3 + 1) + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 40 + '%';
+                star.style.animationDelay = Math.random() * 2 + 's';
+                scene.appendChild(star);
+            }
+
+            // Set SVG content
+            document.getElementById('action-robber').innerHTML = robberSVG();
+            document.getElementById('action-dogmobile').innerHTML = dogmobileSVG();
+            document.getElementById('action-superdog').innerHTML = jumpingDogSVG();
+            document.getElementById('action-superboy').innerHTML = jumpingBoySVG();
+        }
+
+        let actionTimeouts = [];
+        
+        function resetActionScene() {
+            const robber = document.getElementById('action-robber');
+            const dogmobile = document.getElementById('action-dogmobile');
+            const superdog = document.getElementById('action-superdog');
+            const superboy = document.getElementById('action-superboy');
+            const captureFx = document.getElementById('action-capture-fx');
+            
+            actionTimeouts.forEach(t => clearTimeout(t));
+            actionTimeouts = [];
+            
+            // Disable transitions, remove classes to go back to CSS defaults
+            robber.style.transition = 'none';
+            dogmobile.style.transition = 'none';
+            superdog.style.transition = 'none';
+            superboy.style.transition = 'none';
+            robber.className = '';
+            dogmobile.className = '';
+            superdog.className = '';
+            superboy.className = '';
+            captureFx.classList.remove('show');
+            // Clear any inline styles so CSS defaults apply
+            robber.style.transform = '';
+            dogmobile.style.transform = '';
+            superdog.style.opacity = '';
+            superdog.style.transform = '';
+            superboy.style.opacity = '';
+            superboy.style.transform = '';
+            
+            // Force reflow
+            void robber.offsetWidth;
+            
+            // Re-enable transitions
+            robber.style.transition = '';
+            dogmobile.style.transition = '';
+            superdog.style.transition = '';
+            superboy.style.transition = '';
+        }
+
+        function playCorrectAction(dogName) {
+            document.getElementById('action-overlay').style.display = 'block';
+            document.getElementById('action-message').innerText = dogName + " & Super Boy to the rescue!";
+            document.getElementById('capture-text').innerText = "POW!";
+            
+            resetActionScene();
+            
+            const robber = document.getElementById('action-robber');
+            const dogmobile = document.getElementById('action-dogmobile');
+            const superdog = document.getElementById('action-superdog');
+            const superboy = document.getElementById('action-superboy');
+            const captureFx = document.getElementById('action-capture-fx');
+
+            // Robber sneaks in
+            actionTimeouts.push(setTimeout(() => {
+                robber.classList.add('sneak-in');
+            }, 100));
+
+            // Dogmobile zooms in
+            actionTimeouts.push(setTimeout(() => {
+                dogmobile.classList.add('drive-in');
+            }, 1500));
+
+            // Super dog jumps out
+            actionTimeouts.push(setTimeout(() => {
+                superdog.classList.add('jump-out');
+            }, 2700));
+
+            // Super boy jumps out right after
+            actionTimeouts.push(setTimeout(() => {
+                superboy.classList.add('jump-out');
+            }, 2900));
+
+            // Dog lands
+            actionTimeouts.push(setTimeout(() => {
+                superdog.classList.remove('jump-out');
+                superdog.classList.add('land');
+            }, 3300));
+
+            // Boy lands
+            actionTimeouts.push(setTimeout(() => {
+                superboy.classList.remove('jump-out');
+                superboy.classList.add('land');
+            }, 3400));
+
+            // Tackle!
+            actionTimeouts.push(setTimeout(() => {
+                superdog.classList.remove('land');
+                superdog.classList.add('tackle');
+                superboy.classList.remove('land');
+                superboy.classList.add('tackle');
+                robber.classList.remove('sneak-in');
+                robber.classList.add('caught');
+                captureFx.classList.add('show');
+                playSound('correct'); // Extra sound effect for impact
+            }, 3700));
+            
+            // End scene
+            actionTimeouts.push(setTimeout(() => {
+                document.getElementById('action-overlay').style.display = 'none';
+                if (score >= targetScore) {
+                    saveStars();
+                    startCutscene();
+                } else {
+                    nextQuestion();
+                }
+            }, 5500));
+        }
+
+        function playWrongAction() {
+            document.getElementById('action-overlay').style.display = 'block';
+            document.getElementById('action-message').innerText = "Oh no, the Robber stole more money!";
+            document.getElementById('capture-text').innerText = "YOINK!";
+            
+            resetActionScene();
+            
+            const robber = document.getElementById('action-robber');
+            const captureFx = document.getElementById('action-capture-fx');
+            
+            // Robber sneaks in quickly
+            actionTimeouts.push(setTimeout(() => {
+                robber.style.transition = 'transform 0.8s ease-out';
+                robber.classList.add('sneak-in');
+            }, 100));
+            
+            // Yoink!
+            actionTimeouts.push(setTimeout(() => {
+                captureFx.classList.add('show');
+                robber.classList.add('sneaking');
+                playSound('wrong');
+            }, 1000));
+            
+            // Sneak away - use caught class which moves robber
+            actionTimeouts.push(setTimeout(() => {
+                captureFx.classList.remove('show');
+                robber.classList.remove('sneaking');
+                robber.classList.remove('sneak-in');
+                // Force the robber off screen using a class-compatible approach
+                robber.style.transition = 'transform 0.8s ease-in';
+                robber.className = ''; // back to default = offscreen at 110vw
+            }, 2000));
+            
+            // End scene
+            actionTimeouts.push(setTimeout(() => {
+                document.getElementById('action-overlay').style.display = 'none';
+                const gridButtons = document.querySelectorAll('.letter-btn');
+                gridButtons.forEach(b => b.style.pointerEvents = 'auto');
+                speak(`This one is a ${currentTarget}. Try again! Find the letter ${currentTarget}`);
+            }, 3000));
+        }
+
+        document.addEventListener('DOMContentLoaded', initActionScene);
+
+        // Audio Setup
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'beep') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, now);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'rocket') {
+                osc.type = 'square'; // pseudo-noise
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.linearRampToValueAtTime(400, now + 3);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.5, now + 1);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 5);
+                osc.start(now);
+                osc.stop(now + 5);
+            }
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        document.getElementById('play-btn').addEventListener('click', () => {
+            initAudio();
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            score = 0;
+            updateScore();
+            nextQuestion();
+        });
+
+        document.getElementById('speaker-btn').addEventListener('click', () => {
+            speak(`Find the letter ${currentTarget}`);
+        });
+
+        function updateScore() {
+            document.getElementById('score-display').innerText = score;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function nextQuestion() {
+            // Pick letters
+            currentTarget = alphabet[Math.floor(Math.random() * alphabet.length)];
+            let options = [currentTarget];
+            while (options.length < 5) {
+                let r = alphabet[Math.floor(Math.random() * alphabet.length)];
+                if (!options.includes(r)) options.push(r);
+            }
+            options = shuffle(options);
+
+            // Render buttons
+            const grid = document.getElementById('letter-grid');
+            grid.innerHTML = '';
+            options.forEach(letter => {
+                const btn = document.createElement('button');
+                btn.className = 'letter-btn';
+                btn.innerText = letter + letter.toLowerCase();
+                btn.onclick = () => handleChoice(btn, letter);
+                grid.appendChild(btn);
+            });
+
+            setTimeout(() => {
+                speak(`Find the letter ${currentTarget}`);
+            }, 500);
+        }
+
+        function handleChoice(btn, letter) {
+            if (btn.classList.contains('correct') || btn.classList.contains('wrong')) return;
+
+            const gridButtons = document.querySelectorAll('.letter-btn');
+            gridButtons.forEach(b => b.style.pointerEvents = 'none'); // disable grid
+
+            if (letter === currentTarget) {
+                // Correct - show dog rescue animation
+                btn.classList.add('correct');
+                score++;
+                updateScore();
+                
+                const dog = superDogs[Math.floor(Math.random() * superDogs.length)];
+                playCorrectAction(dog.name);
+
+            } else {
+                // Wrong - show robber stealing animation
+                btn.classList.add('wrong');
+                playWrongAction();
+            }
+        }
+
+        function saveStars() {
+            let currentStars = parseInt(localStorage.getItem('kidgames_stars') || '0');
+            localStorage.setItem('kidgames_stars', currentStars + score);
+        }
+
+        // Cutscene Logic - full sequence
+        function showCaption(id) {
+            document.querySelectorAll('.landing-caption').forEach(c => c.style.display = 'none');
+            if (id) document.getElementById(id).style.display = 'block';
+        }
+        
+        function resetCutscene() {
+            // Reset everything
+            document.getElementById('rocket').style.cssText = 'position:absolute;bottom:10%;left:50%;transform:translateX(-50%);width:100px;height:160px;z-index:10;transition:bottom 5s ease-in,transform 2s;';
+            document.getElementById('city-bg').style.transform = 'translateY(0)';
+            document.getElementById('city-bg').style.display = 'flex';
+            document.getElementById('cutscene-bg').style.background = '#0a0a2a';
+            document.getElementById('stars').style.display = 'none';
+            document.getElementById('stars').innerHTML = '';
+            document.getElementById('exhaust').style.display = 'none';
+            document.getElementById('countdown').style.display = 'block';
+            document.getElementById('win-msg').style.display = 'none';
+            document.getElementById('play-again-btn').style.display = 'none';
+            document.getElementById('the-sun').style.display = 'none';
+            document.getElementById('orbit-container').style.display = 'none';
+            document.getElementById('orbit-container').classList.remove('orbiting');
+            document.getElementById('earth-landing').style.display = 'none';
+            document.getElementById('earth-landing').innerHTML = '';
+            document.getElementById('landing-rocket').style.display = 'none';
+            document.getElementById('burning-feet').style.display = 'none';
+            document.getElementById('rocket-hero').innerText = '🐕';
+            showCaption(null);
+        }
+
+        function startCutscene() {
+            document.getElementById('game-screen').classList.remove('active');
+            document.getElementById('cutscene-screen').classList.add('active');
+            resetCutscene();
+
+            // Show Super Dogs driving caption
+            showCaption('caption1');
+
+            let count = 3;
+            const countEl = document.getElementById('countdown');
+            countEl.innerText = count;
+            
+            const countInterval = setInterval(() => {
+                playSound('beep');
+                count--;
+                if (count > 0) {
+                    countEl.innerText = count;
+                } else {
+                    clearInterval(countInterval);
+                    countEl.style.display = 'none';
+                    phase_liftoff();
+                }
+            }, 1000);
+        }
+
+        function phase_liftoff() {
+            playSound('rocket');
+            document.getElementById('exhaust').style.display = 'block';
+            
+            setTimeout(() => {
+                // Liftoff!
+                document.getElementById('rocket').style.bottom = '150%';
+                document.getElementById('city-bg').style.transform = 'translateY(100%)';
+
+                setTimeout(() => {
+                    phase_space();
+                }, 2500);
+            }, 1000);
+        }
+
+        function phase_space() {
+            // Space background with stars
+            document.getElementById('cutscene-bg').style.background = '#000';
+            document.getElementById('rocket').style.display = 'none';
+            document.getElementById('city-bg').style.display = 'none';
+            
+            const starsDiv = document.getElementById('stars');
+            starsDiv.style.display = 'block';
+            starsDiv.innerHTML = '';
+            for(let i = 0; i < 60; i++) {
+                let star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = Math.random() * 4 + 1 + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 1 + 's';
+                starsDiv.appendChild(star);
+            }
+            
+            showCaption('caption2');
+            
+            // Show sun in the distance
+            const sun = document.getElementById('the-sun');
+            sun.style.display = 'block';
+            
+            setTimeout(() => {
+                phase_orbit();
+            }, 2000);
+        }
+
+        function phase_orbit() {
+            showCaption('caption3');
+            playSound('wrong'); // Hot!
+            document.getElementById('burning-feet').style.display = 'block';
+            
+            // Show orbit
+            const orbitC = document.getElementById('orbit-container');
+            orbitC.style.display = 'block';
+            orbitC.classList.add('orbiting');
+            
+            setTimeout(() => {
+                document.getElementById('burning-feet').style.display = 'none';
+                orbitC.style.display = 'none';
+                orbitC.classList.remove('orbiting');
+                phase_returnToEarth();
+            }, 4500);
+        }
+
+        function phase_returnToEarth() {
+            showCaption('caption4');
+            
+            // Fade sun away
+            document.getElementById('the-sun').style.display = 'none';
+            
+            setTimeout(() => {
+                phase_landing();
+            }, 2000);
+        }
+
+        function phase_landing() {
+            // Show earth scene
+            document.getElementById('stars').style.display = 'none';
+            document.getElementById('cutscene-bg').style.background = '#87CEEB';
+            
+            const earth = document.getElementById('earth-landing');
+            earth.style.display = 'block';
+            earth.innerHTML = '';
+            // Add clouds
+            for(let i = 0; i < 3; i++) {
+                let cloud = document.createElement('div');
+                cloud.className = 'earth-cloud';
+                cloud.style.cssText = `width:${80+Math.random()*60}px; height:30px; top:${5+i*8}%; left:${10+i*30}%;`;
+                earth.appendChild(cloud);
+            }
+            // Add trees
+            const trees = ['🌲','🌳','🌴','🌲','🌳','🌴','🌲','🌳'];
+            trees.forEach((t, i) => {
+                let tree = document.createElement('div');
+                tree.className = 'earth-tree';
+                tree.innerText = t;
+                tree.style.left = (5 + i * 12) + '%';
+                earth.appendChild(tree);
+            });
+            // Add people waiting
+            let crowd = document.createElement('div');
+            crowd.style.cssText = 'position:absolute;bottom:5%;left:50%;transform:translateX(-50%);font-size:2rem;text-align:center;z-index:3;';
+            crowd.innerHTML = '👋👨‍👩‍👧‍👦 👧👦 👴👵 🎉';
+            earth.appendChild(crowd);
+            
+            // Landing rocket comes from top
+            const lr = document.getElementById('landing-rocket');
+            lr.style.display = 'block';
+            lr.style.cssText = 'position:absolute;top:-10%;left:50%;transform:translateX(-50%) rotate(180deg);font-size:4rem;z-index:10;display:block;transition:all 3s cubic-bezier(0.25,0.46,0.45,0.94);';
+            
+            showCaption('caption5');
+            
+            setTimeout(() => {
+                lr.style.top = '45%';
+            }, 100);
+            
+            setTimeout(() => {
+                // Landed!
+                playSound('correct');
+                document.getElementById('win-msg').style.display = 'block';
+                document.getElementById('play-again-btn').style.display = 'block';
+            }, 3500);
+        }
+
+        document.getElementById('play-again-btn').addEventListener('click', () => {
+            document.getElementById('cutscene-screen').classList.remove('active');
+            document.getElementById('start-screen').classList.add('active');
+            resetCutscene();
+        });
+
+    </script>
+</body>
+</html>

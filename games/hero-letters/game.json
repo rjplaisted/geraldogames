@@ -1,0 +1,8 @@
+{
+  "name": "Hero Letters!",
+  "description": "Listen to the letter and tap it to save the day! Join Superman, Batman, and Spider-Man on a rocket to space! 🦸🚀",
+  "emoji": "🦸",
+  "minAge": 3,
+  "maxAge": 6,
+  "tags": ["letters", "alphabet", "listening", "heroes", "phonics"]
+}
