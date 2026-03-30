@@ -7,7 +7,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
         body { 
-            font-family: 'Comic Sans MS', cursive, sans-serif; 
+            font-family: 'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', 'Marker Felt', sans-serif; 
             overflow: hidden; 
             background: #87CEEB; /* Day sky */
             touch-action: manipulation;
@@ -1011,7 +1011,7 @@
             }, 5500));
         }
 
-        function playWrongAction() {
+        function playWrongAction(wrongLetter) {
             document.getElementById('action-overlay').style.display = 'block';
             document.getElementById('action-message').innerText = "Oh no, the Robber stole more money!";
             document.getElementById('capture-text').innerText = "YOINK!";
@@ -1049,7 +1049,7 @@
                 document.getElementById('action-overlay').style.display = 'none';
                 const gridButtons = document.querySelectorAll('.letter-btn');
                 gridButtons.forEach(b => b.style.pointerEvents = 'auto');
-                speak(`This one is a ${currentTarget}. Try again! Find the letter ${currentTarget}`);
+                speak(`That was ${wrongLetter}, not ${currentTarget}. Try again! Find the letter ${currentTarget}`);
             }, 3000));
         }
 
@@ -1185,7 +1185,7 @@
             } else {
                 // Wrong - show robber stealing animation
                 btn.classList.add('wrong');
-                playWrongAction();
+                playWrongAction(letter);
             }
         }
 
