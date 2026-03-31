@@ -2907,22 +2907,43 @@
       ensureAudioCtx();
     }
 
+    // ===== FRAME RATE NORMALIZATION =====
+    // Cap game logic at 60fps so high-refresh-rate devices (e.g. iPad 120Hz) don't run too fast
+    const TARGET_FPS = 60;
+    const FRAME_DURATION = 1000 / TARGET_FPS;
+    let lastFrameTime = 0;
+    let accumulator = 0;
+
     // ===== MAIN LOOP =====
-    function gameLoop() {
+    function gameLoop(timestamp) {
+      if (!lastFrameTime) lastFrameTime = timestamp;
+      const elapsed = timestamp - lastFrameTime;
+      lastFrameTime = timestamp;
+      // Clamp elapsed to avoid spiral of death after tab-away
+      accumulator += Math.min(elapsed, 200);
+
+      // Only run game logic at ~60fps ticks
+      let ticked = false;
+      while (accumulator >= FRAME_DURATION) {
+        accumulator -= FRAME_DURATION;
+        ticked = true;
+        gameTick();
+      }
+
+      // Always render (smooth on high-Hz displays)
       ctx.clearRect(0, 0, GAME_W, GAME_H);
+      gameRender();
 
-      drawSky();
-      drawMountains();
-      drawClouds();
+      requestAnimationFrame(gameLoop);
+    }
 
+    function gameTick() {
       if (gameState === 'playing') {
         frameCount++;
 
         if (finaleActive) {
-          // During finale, only update finale
           updateFinale();
         } else if (cutsceneActive) {
-          // During cutscene, only update cutscene (game paused)
           updateCutscene();
         } else {
           groundOffset += gameSpeed;
@@ -2939,6 +2960,12 @@
           checkTornadoLaunch();
         }
       }
+    }
+
+    function gameRender() {
+      drawSky();
+      drawMountains();
+      drawClouds();
 
       // Draw water behind ground
       waterZones.forEach(w => drawWater(w));
@@ -3007,8 +3034,6 @@
       if (!cutsceneActive) {
         drawLetterPrompt();
       }
-
-      requestAnimationFrame(gameLoop);
     }
 
     // ===== INPUT =====
@@ -3042,7 +3067,7 @@
       sheetHeight = spriteSheet.naturalHeight;
       frameWidth = sheetWidth / COLS;
       frameHeight = sheetHeight / ROWS;
-      gameLoop();
+      requestAnimationFrame(gameLoop);
     }
 
     spriteSheet.onload = initSheet;
