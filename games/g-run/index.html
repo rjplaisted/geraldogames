@@ -22,13 +22,17 @@
       z-index: 10;
     }
     .back-btn {
-      font-size: 1.8rem; text-decoration: none; line-height: 1;
-      background: rgba(255,255,255,0.12); border-radius: 50%;
-      width: 2.8rem; height: 2.8rem;
+      font-size: 2.2rem; text-decoration: none; line-height: 1;
+      background: rgba(255,255,255,0.85); border-radius: 16px;
+      width: 3.2rem; height: 3.2rem;
       display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
     }
+    .back-btn:active { transform: translateY(3px); box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     header h1 { font-family: 'Baloo 2', cursive; font-size: 1.6rem; }
-    #score-bar { margin-left: auto; font-size: 1.3rem; font-weight: 900; }
+    #coin-bar { margin-left: auto; }
+    #score-bar { font-size: 1.3rem; font-weight: 900; }
     #music-btn {
       font-size: 1.6rem; background: rgba(255,255,255,0.12);
       border: none; border-radius: 50%; width: 2.4rem; height: 2.4rem;
@@ -88,10 +92,11 @@
 </head>
 <body>
   <header>
-    <a class="back-btn" href="/" aria-label="Back">&#8592;</a>
+    <a class="back-btn" href="/" aria-label="Home">🏠</a>
     <h1>G-Run!</h1>
     <button id="music-btn" aria-label="Toggle Music">🔇</button>
-    <div id="score-bar">🪙 <span id="score-display">0</span></div>
+    <div id="coin-bar" style="font-size:1.3rem;font-weight:900;">🪙 <span id="coin-display">0</span></div>
+    <div id="score-bar">⭐ <span id="score-display">0</span></div>
   </header>
 
   <div id="game-wrapper">
@@ -99,7 +104,7 @@
 
     <div id="overlay">
       <h2 id="overlay-title">G-Run!</h2>
-      <p id="overlay-msg">Tap or press Space to jump! Double-tap for double jump!</p>
+      <p id="overlay-msg">Collect the letters A to Z in order!<br>Tap or press Space to jump! Double-tap for double jump!</p>
       <div class="final-score hidden" id="overlay-score"></div>
       <button class="play-btn" id="play-btn">Play!</button>
     </div>
@@ -120,6 +125,54 @@
     const COLS = 7;
     const ROWS = 4;
     let sheetWidth, sheetHeight, frameWidth, frameHeight;
+
+    // ===== SPEECH SYSTEM =====
+    let speechVoice = null;
+    let speechReady = false;
+
+    function initSpeechVoice() {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+      // Prefer natural/realistic voices
+      const preferred = [
+        'Google US English', 'Google UK English Female', 'Google UK English Male',
+        'Samantha', 'Daniel', 'Karen', 'Moira', 'Tessa',
+        'Microsoft Zira', 'Microsoft David', 'Microsoft Mark',
+        'Alex', 'Fiona', 'Victoria'
+      ];
+      for (const name of preferred) {
+        const found = voices.find(v => v.name.includes(name));
+        if (found) { speechVoice = found; break; }
+      }
+      // Fallback: pick first English voice
+      if (!speechVoice) {
+        speechVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+      }
+      speechReady = true;
+    }
+
+    // Voices load async in some browsers
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = initSpeechVoice;
+      initSpeechVoice();
+    }
+
+    function speakText(text) {
+      if (!window.speechSynthesis || !speechReady) return;
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      if (speechVoice) utter.voice = speechVoice;
+      utter.rate = 1.05;
+      utter.pitch = 1.1;
+      utter.volume = 0.9;
+      window.speechSynthesis.speak(utter);
+    }
+
+    // Speak with Geraldo's name - uses phonetic "Heraldo" for closer Spanish pronunciation
+    function speakGeraldo(text) {
+      speakText(text);
+    }
 
     // ===== AUDIO SYSTEM =====
     let audioCtx = null;
@@ -324,6 +377,7 @@
     // ===== GAME STATE =====
     let gameState = 'start';
     let score = 0;
+    let coinCount = 0;
     let gameSpeed = 4.5;
     const BASE_SPEED = 4.5;
     const GROUND_LEVEL = GAME_H - 130;
@@ -331,6 +385,44 @@
     let groundOffset = 0;
     let distanceTraveled = 0;
     let difficulty = 1; // increases over time for level variety
+
+    // ===== ALPHABET GAME =====
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let currentLetterIndex = 0;        // which letter we're on (0=A, 1=B, etc.)
+    let collectedLetters = new Set();  // set of collected letter indices
+    let letterItems = [];              // active letter collectibles on screen
+    let letterSpawnCooldown = 0;       // frames until next letter spawn
+    let letterPromptText = '';         // "Get that A!" prompt
+    let letterPromptTimer = 0;        // how long to show the prompt
+    let letterCelebrateText = '';      // "You got the A!" celebration
+    let letterCelebrateTimer = 0;     // how long to show celebration
+    const ALPHABET_BAR_H = 44;        // height of the alphabet bar area on canvas
+
+    // ===== LETTER CUTSCENE =====
+    let cutsceneActive = false;
+    let cutsceneLetter = '';
+    let cutsceneTimer = 0;
+    const CUTSCENE_DURATION = 180;    // 3 seconds at 60fps
+    let cutsceneParticles = [];
+    let cutsceneFlashAlpha = 0;
+    let cutsceneWaiting = false;      // waiting for click to continue
+
+    // ===== FINALE CUTSCENE =====
+    let finaleActive = false;
+    let finalePhase = 0;        // 0=congrats, 1=doritos, 2=alphabet, 3=space, 4=restart
+    let finaleTimer = 0;
+    let finaleGeraldoX = 0;
+    let finaleGeraldoY = 0;
+    let finaleGeraldoFrame = 0;
+    let finaleGeraldoAnimTimer = 0;
+    let finaleGeraldoSpeed = 4;
+    let finaleGeraldoGlow = 0;
+    let finaleDoritos = [];
+    let finaleLetters = [];
+    let finaleStars = [];
+    let finaleParticles = [];
+    let finaleEarthY = 0;
+    let finaleEarthScale = 1;
 
     // ===== PLAYER =====
     const player = {
@@ -403,6 +495,7 @@
     const overlayScore = document.getElementById('overlay-score');
     const playBtn = document.getElementById('play-btn');
     const scoreDisplay = document.getElementById('score-display');
+    const coinDisplay = document.getElementById('coin-display');
 
     // ===== SPRITE DRAWING =====
     function drawSpriteFrame(frameIndex, dx, dy, dw, dh) {
@@ -761,6 +854,1051 @@
       ctx.restore();
     }
 
+    // ===== DRAW: ALPHABET BAR =====
+    function drawAlphabetBar() {
+      const totalW = GAME_W;
+      const tileSize = 34;
+      const tileGap = 3;
+      const totalTilesW = 26 * (tileSize + tileGap) - tileGap;
+      const startX = (totalW - totalTilesW) / 2;
+      const startY = 5;
+
+      // Semi-transparent background bar
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillRect(0, 0, GAME_W, ALPHABET_BAR_H);
+
+      for (let i = 0; i < 26; i++) {
+        const tx = startX + i * (tileSize + tileGap);
+        const ty = startY;
+        const letter = ALPHABET[i];
+        const collected = collectedLetters.has(i);
+
+        if (collected) {
+          // 3D brown scrabble tile - collected!
+          // Tile shadow (3D effect)
+          ctx.fillStyle = '#5D4037';
+          ctx.fillRect(tx + 2, ty + 3, tileSize, tileSize);
+          // Tile face
+          ctx.fillStyle = '#A1887F';
+          ctx.fillRect(tx, ty, tileSize, tileSize);
+          // Highlight edge (top-left lighter)
+          ctx.fillStyle = '#BCAAA4';
+          ctx.fillRect(tx, ty, tileSize, 3);
+          ctx.fillRect(tx, ty, 3, tileSize);
+          // Dark edge (bottom-right darker)
+          ctx.fillStyle = '#6D4C41';
+          ctx.fillRect(tx, ty + tileSize - 3, tileSize, 3);
+          ctx.fillRect(tx + tileSize - 3, ty, 3, tileSize);
+          // Letter text
+          ctx.fillStyle = '#3E2723';
+          ctx.font = 'bold 14px "Baloo 2", cursive';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(letter + letter.toLowerCase(), tx + tileSize / 2, ty + 3);
+        } else if (i === currentLetterIndex) {
+          // Current target letter - subtle glow/pulse
+          const pulse = 0.6 + Math.sin(frameCount * 0.08) * 0.2;
+          ctx.fillStyle = `rgba(255, 215, 0, ${pulse * 0.3})`;
+          ctx.fillRect(tx - 2, ty - 2, tileSize + 4, tileSize + 4);
+          // Gray tile with slight gold tint
+          ctx.fillStyle = '#9E9E9E';
+          ctx.fillRect(tx, ty, tileSize, tileSize);
+          ctx.fillStyle = '#757575';
+          ctx.font = 'bold 14px "Baloo 2", cursive';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(letter + letter.toLowerCase(), tx + tileSize / 2, ty + 3);
+        } else {
+          // Gray uncollected tile
+          ctx.fillStyle = '#616161';
+          ctx.fillRect(tx, ty, tileSize, tileSize);
+          ctx.fillStyle = '#9E9E9E';
+          ctx.fillRect(tx + 1, ty + 1, tileSize - 2, tileSize - 2);
+          // Gray letter
+          ctx.fillStyle = '#757575';
+          ctx.font = 'bold 14px "Baloo 2", cursive';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(letter + letter.toLowerCase(), tx + tileSize / 2, ty + 3);
+        }
+      }
+    }
+
+    // ===== DRAW: LETTER COLLECTIBLE =====
+    function drawLetterItem(item) {
+      if (item.collected) return;
+      const bobY = item.y + Math.sin(frameCount * 0.05 + item.seed) * 5;
+
+      // Glow
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.25)';
+      ctx.beginPath();
+      ctx.arc(item.x + item.width / 2, bobY + item.height / 2, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3D scrabble tile
+      const tx = item.x;
+      const ty = bobY;
+      const ts = item.width;
+
+      // Shadow
+      ctx.fillStyle = '#5D4037';
+      ctx.fillRect(tx + 3, ty + 4, ts, ts);
+      // Face
+      ctx.fillStyle = '#D7CCC8';
+      ctx.fillRect(tx, ty, ts, ts);
+      // Highlight edges
+      ctx.fillStyle = '#EFEBE9';
+      ctx.fillRect(tx, ty, ts, 4);
+      ctx.fillRect(tx, ty, 4, ts);
+      // Dark edges
+      ctx.fillStyle = '#8D6E63';
+      ctx.fillRect(tx, ty + ts - 4, ts, 4);
+      ctx.fillRect(tx + ts - 4, ty, 4, ts);
+
+      // Letter
+      ctx.fillStyle = '#3E2723';
+      ctx.font = 'bold 28px "Baloo 2", cursive';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(item.letter, tx + ts / 2, ty + ts / 2 + 2);
+
+      // Sparkle effect
+      if (frameCount % 30 < 8) {
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(tx + ts - 4, ty + 4, 3 + Math.sin(frameCount * 0.2) * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // ===== DRAW: LETTER PROMPT =====
+    function drawLetterPrompt() {
+      if (letterPromptTimer > 0) {
+        const alpha = Math.min(1, letterPromptTimer / 30);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#FFD740';
+        ctx.font = 'bold 32px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = '#3E2723';
+        ctx.lineWidth = 4;
+        ctx.strokeText(letterPromptText, GAME_W / 2, ALPHABET_BAR_H + 40);
+        ctx.fillText(letterPromptText, GAME_W / 2, ALPHABET_BAR_H + 40);
+        ctx.restore();
+      }
+      if (letterCelebrateTimer > 0) {
+        const alpha = Math.min(1, letterCelebrateTimer / 30);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#76FF03';
+        ctx.font = 'bold 36px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = '#1B5E20';
+        ctx.lineWidth = 4;
+        ctx.strokeText(letterCelebrateText, GAME_W / 2, GAME_H / 2 - 40);
+        ctx.fillText(letterCelebrateText, GAME_W / 2, GAME_H / 2 - 40);
+        ctx.restore();
+      }
+    }
+
+    // ===== CUTSCENE SYSTEM =====
+    function startLetterCutscene(letter) {
+      cutsceneActive = true;
+      cutsceneLetter = letter;
+      cutsceneTimer = CUTSCENE_DURATION;
+      cutsceneFlashAlpha = 1.0;
+      cutsceneParticles = [];
+
+      // Create explosion particles
+      for (let i = 0; i < 60; i++) {
+        const angle = (i / 60) * Math.PI * 2 + Math.random() * 0.3;
+        const speed = 3 + Math.random() * 8;
+        const colors = ['#FFD700', '#FF6F00', '#FF5252', '#76FF03', '#00E5FF', '#E040FB', '#FFAB40', '#fff'];
+        cutsceneParticles.push({
+          x: GAME_W / 2,
+          y: GAME_H / 2,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 4 + Math.random() * 10,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 80 + Math.random() * 60,
+          maxLife: 80 + Math.random() * 60,
+          spin: (Math.random() - 0.5) * 0.3,
+          angle: Math.random() * Math.PI * 2,
+          shape: Math.random() < 0.5 ? 'circle' : 'star',
+        });
+      }
+
+      // Play celebration sound
+      playCutsceneSound();
+
+      // Speech: "Good job Geraldo! This is the letter A"
+      if (window.speechSynthesis && speechReady) {
+        window.speechSynthesis.cancel();
+        const utter1 = new SpeechSynthesisUtterance('Good job, Heraldo!');
+        if (speechVoice) utter1.voice = speechVoice;
+        utter1.rate = 1.05; utter1.pitch = 1.1; utter1.volume = 0.9;
+        const utter2 = new SpeechSynthesisUtterance('This is the letter ' + letter);
+        if (speechVoice) utter2.voice = speechVoice;
+        utter2.rate = 0.95; utter2.pitch = 1.1; utter2.volume = 0.9;
+        window.speechSynthesis.speak(utter1);
+        window.speechSynthesis.speak(utter2);
+      }
+    }
+
+    function playCutsceneSound() {
+      ensureAudioCtx();
+      // Fanfare: ascending notes
+      const fanfare = [523, 659, 784, 1047, 1319];
+      fanfare.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'square';
+        const t = audioCtx.currentTime + i * 0.12;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.start(t);
+        osc.stop(t + 0.22);
+      });
+      // Big bass boom
+      const boom = audioCtx.createOscillator();
+      const boomGain = audioCtx.createGain();
+      boom.connect(boomGain);
+      boomGain.connect(audioCtx.destination);
+      boom.type = 'triangle';
+      const t0 = audioCtx.currentTime;
+      boom.frequency.setValueAtTime(80, t0);
+      boom.frequency.exponentialRampToValueAtTime(30, t0 + 0.5);
+      boomGain.gain.setValueAtTime(0.2, t0);
+      boomGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+      boom.start(t0);
+      boom.stop(t0 + 0.5);
+      // Shimmer
+      const shimmer = audioCtx.createOscillator();
+      const shimGain = audioCtx.createGain();
+      shimmer.connect(shimGain);
+      shimGain.connect(audioCtx.destination);
+      shimmer.type = 'sine';
+      shimmer.frequency.setValueAtTime(2000, t0 + 0.3);
+      shimmer.frequency.exponentialRampToValueAtTime(4000, t0 + 0.8);
+      shimGain.gain.setValueAtTime(0.05, t0 + 0.3);
+      shimGain.gain.exponentialRampToValueAtTime(0.001, t0 + 1.0);
+      shimmer.start(t0 + 0.3);
+      shimmer.stop(t0 + 1.0);
+    }
+
+    function updateCutscene() {
+      if (!cutsceneActive) return;
+      cutsceneTimer--;
+      cutsceneFlashAlpha *= 0.92;
+
+      // Update particles
+      cutsceneParticles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.08; // slight gravity
+        p.vx *= 0.99;
+        p.angle += p.spin;
+        p.life--;
+      });
+      cutsceneParticles = cutsceneParticles.filter(p => p.life > 0);
+
+      // Spawn secondary explosions
+      if (cutsceneTimer > 100 && cutsceneTimer % 15 === 0) {
+        const bx = GAME_W * 0.2 + Math.random() * GAME_W * 0.6;
+        const by = GAME_H * 0.2 + Math.random() * GAME_H * 0.6;
+        const colors = ['#FFD700', '#FF5252', '#76FF03', '#00E5FF', '#E040FB'];
+        for (let i = 0; i < 15; i++) {
+          const angle = (i / 15) * Math.PI * 2;
+          const speed = 2 + Math.random() * 5;
+          cutsceneParticles.push({
+            x: bx, y: by,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: 3 + Math.random() * 6,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            life: 40 + Math.random() * 30,
+            maxLife: 40 + Math.random() * 30,
+            spin: (Math.random() - 0.5) * 0.3,
+            angle: Math.random() * Math.PI * 2,
+            shape: Math.random() < 0.3 ? 'star' : 'circle',
+          });
+        }
+        // Mini boom sound
+        if (audioCtx) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'triangle';
+          const t = audioCtx.currentTime;
+          osc.frequency.setValueAtTime(120 + Math.random() * 200, t);
+          osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+          gain.gain.setValueAtTime(0.08, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+          osc.start(t);
+          osc.stop(t + 0.15);
+        }
+      }
+
+      if (cutsceneTimer <= 0 && !cutsceneWaiting) {
+        cutsceneWaiting = true; // wait for click to continue
+      }
+    }
+
+    function drawCutscene() {
+      if (!cutsceneActive) return;
+      ctx.save();
+
+      // Dark overlay
+      const overlayAlpha = Math.min(0.7, (CUTSCENE_DURATION - cutsceneTimer) * 0.05);
+      ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+      // White flash
+      if (cutsceneFlashAlpha > 0.01) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${cutsceneFlashAlpha})`;
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+      }
+
+      // Draw particles
+      cutsceneParticles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, p.life / (p.maxLife * 0.3));
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        if (p.shape === 'star') {
+          drawStar(0, 0, p.size, p.color);
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      // Big letter in center - bouncy entrance
+      const progress = 1 - (cutsceneTimer / CUTSCENE_DURATION);
+      const scale = progress < 0.15 ? (progress / 0.15) * 1.3 :
+                    progress < 0.25 ? 1.3 - (progress - 0.15) / 0.1 * 0.3 : 1.0;
+      const letterSize = 180 * scale;
+
+      ctx.save();
+      ctx.translate(GAME_W / 2, GAME_H / 2);
+
+      // Letter shadow
+      ctx.fillStyle = '#5D4037';
+      ctx.font = `bold ${letterSize}px "Baloo 2", cursive`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cutsceneLetter, 5, 7);
+
+      // Letter glow
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 30 + Math.sin(frameCount * 0.1) * 10;
+
+      // Big scrabble tile background
+      const tileW = letterSize * 1.2;
+      const tileH = letterSize * 1.3;
+      // Tile shadow
+      ctx.fillStyle = '#5D4037';
+      ctx.fillRect(-tileW / 2 + 5, -tileH / 2 + 7, tileW, tileH);
+      ctx.shadowBlur = 0;
+      // Tile face
+      ctx.fillStyle = '#D7CCC8';
+      ctx.fillRect(-tileW / 2, -tileH / 2, tileW, tileH);
+      // Edges
+      ctx.fillStyle = '#EFEBE9';
+      ctx.fillRect(-tileW / 2, -tileH / 2, tileW, 6);
+      ctx.fillRect(-tileW / 2, -tileH / 2, 6, tileH);
+      ctx.fillStyle = '#8D6E63';
+      ctx.fillRect(-tileW / 2, tileH / 2 - 6, tileW, 6);
+      ctx.fillRect(tileW / 2 - 6, -tileH / 2, 6, tileH);
+
+      // The letters (uppercase + lowercase side by side)
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = '#3E2723';
+      ctx.font = `bold ${letterSize}px "Baloo 2", cursive`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const pairText = cutsceneLetter + cutsceneLetter.toLowerCase();
+      ctx.fillText(pairText, 0, 0);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+
+      // "This is the letter X!" text
+      if (progress > 0.2) {
+        const textAlpha = Math.min(1, (progress - 0.2) * 4);
+        ctx.globalAlpha = textAlpha;
+        ctx.fillStyle = '#FFD740';
+        ctx.font = 'bold 36px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#3E2723';
+        ctx.lineWidth = 4;
+        const textY = GAME_H / 2 + letterSize * 0.9;
+        ctx.strokeText('This is the letter ' + cutsceneLetter + '!', GAME_W / 2, textY);
+        ctx.fillText('This is the letter ' + cutsceneLetter + '!', GAME_W / 2, textY);
+      }
+
+      // "Good job, Geraldo!" text at top
+      if (progress > 0.05 && progress < 0.8) {
+        const textAlpha = progress < 0.15 ? (progress - 0.05) * 10 :
+                          progress > 0.6 ? (0.8 - progress) * 5 : 1;
+        ctx.globalAlpha = textAlpha;
+        ctx.fillStyle = '#76FF03';
+        ctx.font = 'bold 42px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#1B5E20';
+        ctx.lineWidth = 4;
+        ctx.strokeText('Good job, Geraldo!', GAME_W / 2, GAME_H / 2 - letterSize * 0.85);
+        ctx.fillText('Good job, Geraldo!', GAME_W / 2, GAME_H / 2 - letterSize * 0.85);
+      }
+
+      // "Tap to continue" prompt when waiting
+      if (cutsceneWaiting) {
+        const blink = Math.sin(frameCount * 0.08) * 0.3 + 0.7;
+        ctx.globalAlpha = blink;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 28px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('Tap or press Space to continue!', GAME_W / 2, GAME_H - 40);
+        ctx.fillText('Tap or press Space to continue!', GAME_W / 2, GAME_H - 40);
+      }
+
+      ctx.restore();
+    }
+
+    // Helper: draw a star shape
+    function drawStar(cx, cy, size, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+        const x = cx + Math.cos(angle) * size;
+        const y = cy + Math.sin(angle) * size;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // ===== FINALE CUTSCENE SYSTEM =====
+    function startFinale() {
+      finaleActive = true;
+      finalePhase = 0; // congrats
+      finaleTimer = 0;
+      finaleGeraldoX = -120;
+      finaleGeraldoY = GAME_H - 180;
+      finaleGeraldoFrame = 0;
+      finaleGeraldoAnimTimer = 0;
+      finaleGeraldoSpeed = 4;
+      finaleGeraldoGlow = 0;
+      finaleDoritos = [];
+      finaleLetters = [];
+      finaleStars = [];
+      finaleParticles = [];
+      finaleEarthY = 0;
+      finaleEarthScale = 1;
+      stopMusic();
+
+      // Speak congrats
+      if (window.speechSynthesis && speechReady) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance('Congratulations on finishing the alphabet, Heraldo!');
+        if (speechVoice) utter.voice = speechVoice;
+        utter.rate = 0.95; utter.pitch = 1.1; utter.volume = 0.9;
+        window.speechSynthesis.speak(utter);
+      }
+      playPowerUpSound();
+    }
+
+    function updateFinale() {
+      if (!finaleActive) return;
+      finaleTimer++;
+
+      // Animate Geraldo sprite
+      finaleGeraldoAnimTimer++;
+      if (finaleGeraldoAnimTimer % 2 === 0) {
+        finaleGeraldoFrame++;
+        if (finaleGeraldoFrame > 26) finaleGeraldoFrame = 0;
+      }
+
+      // Phase 0: Congrats text (0-180 frames = 3 sec)
+      if (finalePhase === 0) {
+        if (finaleTimer > 180) {
+          finalePhase = 1;
+          finaleTimer = 0;
+          finaleGeraldoX = -120;
+          finaleGeraldoY = GAME_H - 180;
+          finaleGeraldoSpeed = 4;
+          finaleGeraldoGlow = 0.2;
+          // Place doritos across the screen
+          for (let i = 0; i < 12; i++) {
+            finaleDoritos.push({
+              x: 150 + i * 90,
+              y: GAME_H - 150 + Math.sin(i * 0.5) * 20,
+              width: 32, height: 32,
+              hit: false,
+              glow: 0,
+            });
+          }
+        }
+      }
+
+      // Phase 1: Running through doritos (getting faster and glowing more)
+      if (finalePhase === 1) {
+        finaleGeraldoX += finaleGeraldoSpeed;
+
+        // Check dorito collisions
+        for (const d of finaleDoritos) {
+          if (!d.hit && Math.abs(finaleGeraldoX + 50 - d.x - 16) < 40) {
+            d.hit = true;
+            finaleGeraldoSpeed += 0.8;
+            finaleGeraldoGlow = Math.min(1.0, finaleGeraldoGlow + 0.08);
+            playCoinSound();
+            // Spawn particles
+            for (let j = 0; j < 8; j++) {
+              finaleParticles.push({
+                x: d.x + 16, y: d.y + 16,
+                vx: (Math.random() - 0.5) * 6,
+                vy: -2 - Math.random() * 4,
+                size: 3 + Math.random() * 5,
+                color: ['#FF6F00', '#FFB300', '#FFD54F', '#fff'][Math.floor(Math.random() * 4)],
+                life: 40 + Math.random() * 20,
+              });
+            }
+          }
+        }
+
+        // Once past all doritos, move to alphabet phase
+        if (finaleGeraldoX > GAME_W + 50) {
+          finalePhase = 2;
+          finaleTimer = 0;
+          finaleGeraldoX = -120;
+          finaleGeraldoY = GAME_H - 180;
+          // Place alphabet letters across the screen
+          finaleLetters = [];
+          for (let i = 0; i < 26; i++) {
+            finaleLetters.push({
+              x: 80 + i * 42,
+              y: GAME_H - 150 + Math.sin(i * 0.3) * 15,
+              letter: ALPHABET[i],
+              hit: false,
+              glow: 0,
+            });
+          }
+        }
+      }
+
+      // Phase 2: Running through alphabet letters A-Z
+      if (finalePhase === 2) {
+        finaleGeraldoX += finaleGeraldoSpeed;
+
+        // Check letter collisions
+        for (const l of finaleLetters) {
+          if (!l.hit && Math.abs(finaleGeraldoX + 50 - l.x - 16) < 35) {
+            l.hit = true;
+            finaleGeraldoGlow = Math.min(1.0, finaleGeraldoGlow + 0.02);
+            playCoinSound();
+            // Spawn letter particles
+            for (let j = 0; j < 6; j++) {
+              finaleParticles.push({
+                x: l.x + 16, y: l.y + 16,
+                vx: (Math.random() - 0.5) * 5,
+                vy: -2 - Math.random() * 3,
+                size: 4 + Math.random() * 4,
+                color: ['#FFD700', '#76FF03', '#00E5FF', '#E040FB'][Math.floor(Math.random() * 4)],
+                life: 35 + Math.random() * 20,
+              });
+            }
+          }
+        }
+
+        // Once past all letters, move to space phase
+        if (finaleGeraldoX > GAME_W + 50) {
+          finalePhase = 3;
+          finaleTimer = 0;
+          finaleGeraldoX = GAME_W / 2 - 50;
+          finaleGeraldoY = GAME_H - 180;
+          finaleEarthY = GAME_H;
+          finaleEarthScale = 1;
+          // Create stars
+          finaleStars = [];
+          for (let i = 0; i < 100; i++) {
+            finaleStars.push({
+              x: Math.random() * GAME_W,
+              y: Math.random() * GAME_H,
+              size: 0.5 + Math.random() * 2.5,
+              twinkle: Math.random() * Math.PI * 2,
+            });
+          }
+          // Speak
+          if (window.speechSynthesis && speechReady) {
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance('Amazing, Heraldo! You are out of this world!');
+            if (speechVoice) utter.voice = speechVoice;
+            utter.rate = 1.0; utter.pitch = 1.15; utter.volume = 0.9;
+            window.speechSynthesis.speak(utter);
+          }
+        }
+      }
+
+      // Phase 3: Running off earth into space
+      if (finalePhase === 3) {
+        finaleGeraldoY -= 2.5;
+        finaleEarthScale = Math.max(0.1, finaleEarthScale - 0.003);
+
+        // Trail particles behind Geraldo
+        if (finaleTimer % 3 === 0) {
+          finaleParticles.push({
+            x: finaleGeraldoX + 50 + (Math.random() - 0.5) * 20,
+            y: finaleGeraldoY + 120,
+            vx: (Math.random() - 0.5) * 2,
+            vy: 2 + Math.random() * 3,
+            size: 4 + Math.random() * 6,
+            color: ['#FF6F00', '#FFD54F', '#FF5252', '#fff'][Math.floor(Math.random() * 4)],
+            life: 30 + Math.random() * 20,
+          });
+        }
+
+        // Once off screen, go to restart
+        if (finaleGeraldoY < -200) {
+          finalePhase = 4;
+          finaleTimer = 0;
+        }
+      }
+
+      // Phase 4: Show restart button (handled in draw)
+
+      // Update finale particles
+      finaleParticles.forEach(p => {
+        p.x += (p.vx || 0);
+        p.y += (p.vy || 0);
+        if (p.vy !== undefined) p.vy += 0.08;
+        p.life--;
+      });
+      finaleParticles = finaleParticles.filter(p => p.life > 0);
+    }
+
+    function drawFinale() {
+      if (!finaleActive) return;
+      ctx.save();
+
+      // Phase 0: Congrats screen
+      if (finalePhase === 0) {
+        // Dark background
+        ctx.fillStyle = 'rgba(0, 0, 20, 0.85)';
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+        // Confetti particles
+        if (finaleTimer % 5 === 0) {
+          finaleParticles.push({
+            x: Math.random() * GAME_W,
+            y: -10,
+            vx: (Math.random() - 0.5) * 3,
+            vy: 1 + Math.random() * 2,
+            size: 5 + Math.random() * 8,
+            color: ['#FFD700', '#FF5252', '#76FF03', '#00E5FF', '#E040FB', '#FF6F00'][Math.floor(Math.random() * 6)],
+            life: 120,
+          });
+        }
+
+        // Draw confetti
+        finaleParticles.forEach(p => {
+          ctx.globalAlpha = Math.min(1, p.life / 30);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, p.size, p.size * 0.6);
+        });
+        ctx.globalAlpha = 1;
+
+        // Big congrats text
+        const textScale = Math.min(1, finaleTimer / 30);
+        const bounce = finaleTimer < 40 ? Math.sin(finaleTimer * 0.3) * (40 - finaleTimer) * 0.3 : 0;
+        ctx.save();
+        ctx.translate(GAME_W / 2, GAME_H / 2 - 40 + bounce);
+        ctx.scale(textScale, textScale);
+        ctx.fillStyle = '#FFD740';
+        ctx.font = 'bold 52px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = '#3E2723';
+        ctx.lineWidth = 6;
+        ctx.strokeText('Congrats on finishing', 0, -30);
+        ctx.fillText('Congrats on finishing', 0, -30);
+        ctx.strokeText('the alphabet!', 0, 35);
+        ctx.fillText('the alphabet!', 0, 35);
+        ctx.restore();
+
+        // Alphabet display
+        if (finaleTimer > 40) {
+          const alpha = Math.min(1, (finaleTimer - 40) / 30);
+          ctx.globalAlpha = alpha;
+          ctx.font = 'bold 28px "Baloo 2", cursive';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#76FF03';
+          ctx.strokeStyle = '#1B5E20';
+          ctx.lineWidth = 3;
+          const abcText = 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z';
+          ctx.strokeText(abcText, GAME_W / 2, GAME_H / 2 + 100);
+          ctx.fillText(abcText, GAME_W / 2, GAME_H / 2 + 100);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Phase 1: Doritos run
+      if (finalePhase === 1) {
+        // Sky background
+        const grad = ctx.createLinearGradient(0, 0, 0, GAME_H);
+        grad.addColorStop(0, '#FF6F00');
+        grad.addColorStop(0.5, '#FF9800');
+        grad.addColorStop(1, '#4CAF50');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+        // Ground
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(0, GAME_H - 60, GAME_W, 60);
+        ctx.fillStyle = '#66BB6A';
+        ctx.fillRect(0, GAME_H - 66, GAME_W, 8);
+
+        // Draw doritos
+        finaleDoritos.forEach(d => {
+          if (d.hit) return;
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 87, 34, 0.3)';
+          ctx.beginPath();
+          ctx.arc(d.x + 16, d.y + 16, 22, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#FF6F00';
+          ctx.beginPath();
+          ctx.moveTo(d.x + 16, d.y);
+          ctx.lineTo(d.x + 32, d.y + 32);
+          ctx.lineTo(d.x, d.y + 32);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#E65100';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        // Draw particles
+        finaleParticles.forEach(p => {
+          ctx.globalAlpha = Math.min(1, p.life / 15);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        // Draw Geraldo with glow
+        ctx.save();
+        if (finaleGeraldoGlow > 0) {
+          ctx.shadowColor = '#FFD700';
+          ctx.shadowBlur = 20 + finaleGeraldoGlow * 40;
+        }
+        drawSpriteFrame(finaleGeraldoFrame, finaleGeraldoX, finaleGeraldoY, 100, 120);
+        // Glow overlay
+        if (finaleGeraldoGlow > 0.3) {
+          ctx.globalAlpha = finaleGeraldoGlow * 0.3;
+          ctx.fillStyle = '#FFD700';
+          ctx.fillRect(finaleGeraldoX, finaleGeraldoY, 100, 120);
+        }
+        ctx.restore();
+      }
+
+      // Phase 2: Alphabet run
+      if (finalePhase === 2) {
+        // Rainbow gradient background
+        const grad = ctx.createLinearGradient(0, 0, GAME_W, 0);
+        grad.addColorStop(0, '#FF5252');
+        grad.addColorStop(0.2, '#FF9800');
+        grad.addColorStop(0.4, '#FFEB3B');
+        grad.addColorStop(0.6, '#4CAF50');
+        grad.addColorStop(0.8, '#2196F3');
+        grad.addColorStop(1, '#9C27B0');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+        // Darker overlay for readability
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+        // Ground
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(0, GAME_H - 60, GAME_W, 60);
+
+        // Draw letters
+        finaleLetters.forEach(l => {
+          if (l.hit) return;
+          ctx.save();
+          // Scrabble tile
+          const ts = 36;
+          ctx.fillStyle = '#5D4037';
+          ctx.fillRect(l.x + 2, l.y + 3, ts, ts);
+          ctx.fillStyle = '#D7CCC8';
+          ctx.fillRect(l.x, l.y, ts, ts);
+          ctx.fillStyle = '#EFEBE9';
+          ctx.fillRect(l.x, l.y, ts, 3);
+          ctx.fillRect(l.x, l.y, 3, ts);
+          ctx.fillStyle = '#8D6E63';
+          ctx.fillRect(l.x, l.y + ts - 3, ts, 3);
+          ctx.fillRect(l.x + ts - 3, l.y, 3, ts);
+          ctx.fillStyle = '#3E2723';
+          ctx.font = 'bold 22px "Baloo 2", cursive';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(l.letter, l.x + ts / 2, l.y + ts / 2 + 2);
+          ctx.restore();
+        });
+
+        // Draw particles
+        finaleParticles.forEach(p => {
+          ctx.globalAlpha = Math.min(1, p.life / 15);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        // Draw Geraldo with intense glow
+        ctx.save();
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 30 + finaleGeraldoGlow * 50;
+        drawSpriteFrame(finaleGeraldoFrame, finaleGeraldoX, finaleGeraldoY, 100, 120);
+        if (finaleGeraldoGlow > 0.3) {
+          ctx.globalAlpha = finaleGeraldoGlow * 0.35;
+          ctx.fillStyle = '#FFD700';
+          ctx.fillRect(finaleGeraldoX, finaleGeraldoY, 100, 120);
+        }
+        ctx.restore();
+      }
+
+      // Phase 3: Flying into space
+      if (finalePhase === 3) {
+        // Space background
+        ctx.fillStyle = '#0a0a2e';
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+        // Stars
+        finaleStars.forEach(s => {
+          const twinkle = 0.5 + Math.sin(finaleTimer * 0.05 + s.twinkle) * 0.5;
+          ctx.globalAlpha = twinkle;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        // Earth at the bottom, shrinking
+        ctx.save();
+        const earthCX = GAME_W / 2;
+        const earthCY = GAME_H + 50 + finaleTimer * 1.5;
+        const earthR = 200 * finaleEarthScale;
+        // Earth body
+        const earthGrad = ctx.createRadialGradient(earthCX - 30, earthCY - 30, earthR * 0.1, earthCX, earthCY, earthR);
+        earthGrad.addColorStop(0, '#4FC3F7');
+        earthGrad.addColorStop(0.3, '#2196F3');
+        earthGrad.addColorStop(0.6, '#1565C0');
+        earthGrad.addColorStop(1, '#0D47A1');
+        ctx.fillStyle = earthGrad;
+        ctx.beginPath();
+        ctx.arc(earthCX, earthCY, earthR, 0, Math.PI * 2);
+        ctx.fill();
+        // Land masses
+        ctx.fillStyle = '#4CAF50';
+        ctx.beginPath();
+        ctx.arc(earthCX - earthR * 0.3, earthCY - earthR * 0.2, earthR * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(earthCX + earthR * 0.3, earthCY + earthR * 0.1, earthR * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+        // Atmosphere glow
+        ctx.strokeStyle = 'rgba(100, 200, 255, 0.4)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(earthCX, earthCY, earthR + 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Trail particles
+        finaleParticles.forEach(p => {
+          ctx.globalAlpha = Math.min(1, p.life / 15);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        // Draw Geraldo flying upward with max glow
+        ctx.save();
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 60;
+        drawSpriteFrame(finaleGeraldoFrame, finaleGeraldoX, finaleGeraldoY, 100, 120);
+        // Bright glow overlay
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(finaleGeraldoX, finaleGeraldoY, 100, 120);
+        // Extra glow ring
+        ctx.globalAlpha = 0.3 + Math.sin(finaleTimer * 0.1) * 0.15;
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(finaleGeraldoX + 50, finaleGeraldoY + 60, 70, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Phase 4: Restart screen
+      if (finalePhase === 4) {
+        // Space background
+        ctx.fillStyle = '#0a0a2e';
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+        // Stars
+        if (finaleStars.length > 0) {
+          finaleStars.forEach(s => {
+            const twinkle = 0.5 + Math.sin(finaleTimer * 0.05 + s.twinkle) * 0.5;
+            ctx.globalAlpha = twinkle;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.globalAlpha = 1;
+        }
+
+        // Small Earth in corner
+        ctx.save();
+        const smallEarthR = 30;
+        const seGrad = ctx.createRadialGradient(GAME_W - 80, GAME_H - 60, 5, GAME_W - 80, GAME_H - 60, smallEarthR);
+        seGrad.addColorStop(0, '#4FC3F7');
+        seGrad.addColorStop(0.5, '#2196F3');
+        seGrad.addColorStop(1, '#0D47A1');
+        ctx.fillStyle = seGrad;
+        ctx.beginPath();
+        ctx.arc(GAME_W - 80, GAME_H - 60, smallEarthR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#4CAF50';
+        ctx.beginPath();
+        ctx.arc(GAME_W - 90, GAME_H - 65, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // "Geraldo is out of this world!" text
+        const fadeIn = Math.min(1, finaleTimer / 40);
+        ctx.globalAlpha = fadeIn;
+        ctx.fillStyle = '#FFD740';
+        ctx.font = 'bold 48px "Baloo 2", cursive';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#3E2723';
+        ctx.lineWidth = 5;
+        ctx.strokeText('Geraldo is out of this world!', GAME_W / 2, GAME_H / 2 - 60);
+        ctx.fillText('Geraldo is out of this world!', GAME_W / 2, GAME_H / 2 - 60);
+
+        // Score
+        ctx.fillStyle = '#76FF03';
+        ctx.font = 'bold 32px "Baloo 2", cursive';
+        ctx.strokeText('Final Score: ' + score, GAME_W / 2, GAME_H / 2);
+        ctx.fillText('Final Score: ' + score, GAME_W / 2, GAME_H / 2);
+
+        ctx.fillStyle = '#FFD54F';
+        ctx.font = 'bold 24px "Baloo 2", cursive';
+        ctx.strokeText('Coins: ' + coinCount, GAME_W / 2, GAME_H / 2 + 45);
+        ctx.fillText('Coins: ' + coinCount, GAME_W / 2, GAME_H / 2 + 45);
+
+        // Restart button (drawn on canvas)
+        if (finaleTimer > 60) {
+          const btnAlpha = Math.min(1, (finaleTimer - 60) / 30);
+          ctx.globalAlpha = btnAlpha;
+          const btnX = GAME_W / 2 - 100;
+          const btnY = GAME_H / 2 + 75;
+          const btnW = 200;
+          const btnH = 55;
+          // Helper for rounded rect
+          function drawRoundedRect(x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+          }
+          // Button shadow
+          ctx.fillStyle = '#c8a800';
+          drawRoundedRect(btnX, btnY + 5, btnW, btnH, 28);
+          // Button face
+          ctx.fillStyle = '#ffd93d';
+          drawRoundedRect(btnX, btnY, btnW, btnH, 28);
+          // Button text
+          ctx.fillStyle = '#333';
+          ctx.font = 'bold 26px "Baloo 2", cursive';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Restart!', GAME_W / 2, btnY + btnH / 2);
+          ctx.textBaseline = 'alphabetic';
+
+          // Store button bounds for click detection
+          finaleRestartBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.restore();
+    }
+
+    let finaleRestartBtn = null;
+
+    function handleFinaleClick(cx, cy) {
+      if (!finaleActive) return false;
+
+      if (finalePhase === 4 && finaleRestartBtn) {
+        // Convert canvas click coords
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = GAME_W / rect.width;
+        const scaleY = GAME_H / rect.height;
+        const x = cx * scaleX;
+        const y = cy * scaleY;
+        const btn = finaleRestartBtn;
+        if (x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
+          finaleActive = false;
+          finaleRestartBtn = null;
+          // Show start overlay
+          overlay.classList.remove('hidden');
+          overlayTitle.textContent = 'G-Run!';
+          overlayMsg.innerHTML = 'Collect the letters A to Z in order!<br>Tap or press Space to jump! Double-tap for double jump!';
+          overlayScore.classList.add('hidden');
+          playBtn.textContent = 'Play Again!';
+          gameState = 'start';
+          return true;
+        }
+      }
+      return false;
+    }
+
     // ===== DRAW: DEBRIS =====
     function drawDebris() {
       debris.forEach(d => {
@@ -908,12 +2046,11 @@
         }
       }
 
-      // Spawn coins
+      // Spawn coins (for fun!)
       if (spawnTimer % 60 === 0) {
         const numCoins = 1 + Math.floor(Math.random() * 4);
         const startX = GAME_W + 20;
         const coinY = GROUND_LEVEL - 20 - Math.random() * 120;
-        // Sometimes arc pattern
         const arc = Math.random() < 0.3;
         for (let i = 0; i < numCoins; i++) {
           coins.push({
@@ -923,6 +2060,30 @@
             collected: false,
             seed: Math.random() * Math.PI * 2,
           });
+        }
+      }
+
+      // Spawn letters (alphabet game)
+      if (letterSpawnCooldown > 0) letterSpawnCooldown--;
+      if (letterSpawnCooldown <= 0 && currentLetterIndex < 26) {
+        // Only spawn if no uncollected letter of this type is on screen
+        const hasActiveLetterOnScreen = letterItems.some(l => !l.collected && l.letterIndex === currentLetterIndex);
+        if (!hasActiveLetterOnScreen) {
+          const letterY = GROUND_LEVEL - 30 - Math.random() * 100;
+          letterItems.push({
+            x: GAME_W + 20,
+            y: letterY,
+            width: 44, height: 44,
+            collected: false,
+            seed: Math.random() * Math.PI * 2,
+            letter: ALPHABET[currentLetterIndex],
+            letterIndex: currentLetterIndex,
+          });
+          letterSpawnCooldown = 120; // wait before spawning again
+          // Show prompt
+          letterPromptText = 'Get that ' + ALPHABET[currentLetterIndex] + ', Geraldo!';
+          letterPromptTimer = 120;
+          speakGeraldo('Get that ' + ALPHABET[currentLetterIndex] + ', Heraldo!');
         }
       }
 
@@ -1007,7 +2168,9 @@
         ) {
           c.collected = true;
           score += 10;
+          coinCount++;
           scoreDisplay.textContent = score;
+          coinDisplay.textContent = coinCount;
           playCoinSound();
           floatingTexts.push({
             x: c.x + 15, y: c.y - 10,
@@ -1015,6 +2178,71 @@
           });
         }
       });
+    }
+
+    // ===== COLLISION: LETTERS =====
+    function checkLetterCollect() {
+      const px = player.x + 15;
+      const py = player.y + 10;
+      const pw = player.width - 30;
+      const ph = player.height - 15;
+
+      letterItems.forEach(item => {
+        if (item.collected) return;
+        const bobY = item.y + Math.sin(frameCount * 0.05 + item.seed) * 5;
+        if (
+          px < item.x + item.width &&
+          px + pw > item.x &&
+          py < bobY + item.height &&
+          py + ph > bobY
+        ) {
+          item.collected = true;
+          collectedLetters.add(item.letterIndex);
+          score += 25;
+          scoreDisplay.textContent = score;
+          playCoinSound();
+          // Celebration text
+          letterCelebrateText = 'Good job, Geraldo!';
+          letterCelebrateTimer = 90;
+          // Cutscene will handle speech - start cutscene
+          startLetterCutscene(item.letter);
+          letterPromptTimer = 0; // hide prompt
+          floatingTexts.push({
+            x: item.x + item.width / 2, y: item.y - 15,
+            text: '+25 ' + item.letter + '!', color: '#76FF03', life: 70,
+          });
+          // Advance to next letter
+          currentLetterIndex++;
+          letterSpawnCooldown = 90; // short delay before next letter
+          // Check if all 26 collected - trigger finale!
+          if (currentLetterIndex >= 26) {
+            score += 500;
+            scoreDisplay.textContent = score;
+            // Start finale after the Z cutscene is dismissed
+            letterCelebrateText = '';
+            letterCelebrateTimer = 0;
+          }
+        }
+      });
+    }
+
+    // ===== CHECK LETTER MISS (went off screen) =====
+    function checkLetterMiss() {
+      for (let i = letterItems.length - 1; i >= 0; i--) {
+        const item = letterItems[i];
+        if (!item.collected && item.x + item.width < -10) {
+          // Missed! Remove it and respawn
+          letterItems.splice(i, 1);
+          letterSpawnCooldown = 30; // respawn quickly
+          letterPromptText = 'Get that ' + ALPHABET[currentLetterIndex] + ', Geraldo!';
+          letterPromptTimer = 120;
+          speakGeraldo('Get that ' + ALPHABET[currentLetterIndex] + ', Heraldo!');
+          floatingTexts.push({
+            x: 200, y: GAME_H / 2,
+            text: 'Missed the ' + ALPHABET[currentLetterIndex] + '! Try again!', color: '#FF5252', life: 80,
+          });
+        }
+      }
     }
 
     // ===== COLLISION: DORITOS =====
@@ -1355,6 +2583,11 @@
       moveItems(waterZones);
       moveItems(tornados);
       moveItems(doritos);
+      moveItems(letterItems);
+
+      // Update letter prompt/celebrate timers
+      if (letterPromptTimer > 0) letterPromptTimer--;
+      if (letterCelebrateTimer > 0) letterCelebrateTimer--;
 
       // Move sharks (track their water zone)
       sharks.forEach(s => {
@@ -1413,6 +2646,7 @@
       tornados = tornados.filter(t => t.x + t.width > -60);
       sharks = sharks.filter(s => s.x + s.width > -60);
       doritos = doritos.filter(d => d.x + d.width > -60);
+      // Note: letterItems are handled by checkLetterMiss, not filtered here
 
       // Update floating texts
       floatingTexts.forEach(ft => {
@@ -1570,8 +2804,27 @@
       }
     }
 
+    function dismissCutscene() {
+      if (cutsceneActive && cutsceneWaiting) {
+        cutsceneActive = false;
+        cutsceneWaiting = false;
+        cutsceneParticles = [];
+        // If all letters collected, start finale!
+        if (currentLetterIndex >= 26) {
+          startFinale();
+        }
+        return true;
+      }
+      return false;
+    }
+
     function jump() {
       if (gameState !== 'playing') return;
+      if (finaleActive) return;
+      if (cutsceneActive) {
+        dismissCutscene();
+        return;
+      }
 
       if (player.grounded) {
         // First jump
@@ -1593,8 +2846,10 @@
     function startGame() {
       gameState = 'playing';
       score = 0;
+      coinCount = 0;
       distanceTraveled = 0;
       scoreDisplay.textContent = '0';
+      coinDisplay.textContent = '0';
       gameSpeed = BASE_SPEED;
       frameCount = 0;
       spawnTimer = 0;
@@ -1611,6 +2866,29 @@
       knockedPipes = [];
       sharks = [];
       doritos = [];
+      letterItems = [];
+      currentLetterIndex = 0;
+      collectedLetters = new Set();
+      letterSpawnCooldown = 60;
+      letterPromptText = '';
+      letterPromptTimer = 0;
+      letterCelebrateText = '';
+      letterCelebrateTimer = 0;
+      cutsceneActive = false;
+      cutsceneWaiting = false;
+      cutsceneLetter = '';
+      cutsceneTimer = 0;
+      cutsceneParticles = [];
+      cutsceneFlashAlpha = 0;
+      finaleActive = false;
+      finalePhase = 0;
+      finaleTimer = 0;
+      finaleRestartBtn = null;
+      finaleDoritos = [];
+      finaleLetters = [];
+      finaleStars = [];
+      finaleParticles = [];
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
       player.y = GROUND_LEVEL;
       player.vy = 0;
       player.grounded = true;
@@ -1639,17 +2917,27 @@
 
       if (gameState === 'playing') {
         frameCount++;
-        groundOffset += gameSpeed;
 
-        spawnStuff();
-        updateWorld();
-        updatePlayer();
-        checkCoinCollect();
-        checkDoritoCollect();
-        checkBlockHit();
-        checkPipeLanding();
-        checkSharkCollision();
-        checkTornadoLaunch();
+        if (finaleActive) {
+          // During finale, only update finale
+          updateFinale();
+        } else if (cutsceneActive) {
+          // During cutscene, only update cutscene (game paused)
+          updateCutscene();
+        } else {
+          groundOffset += gameSpeed;
+          spawnStuff();
+          updateWorld();
+          updatePlayer();
+          checkCoinCollect();
+          checkLetterCollect();
+          checkLetterMiss();
+          checkDoritoCollect();
+          checkBlockHit();
+          checkPipeLanding();
+          checkSharkCollision();
+          checkTornadoLaunch();
+        }
       }
 
       // Draw water behind ground
@@ -1672,6 +2960,9 @@
 
       // Draw doritos
       doritos.forEach(d => drawDorito(d));
+
+      // Draw letter items
+      letterItems.forEach(l => drawLetterItem(l));
 
       // Draw tornados
       tornados.forEach(t => drawTornado(t));
@@ -1697,6 +2988,26 @@
       // Draw floating texts
       drawFloatingTexts();
 
+      // Draw cutscene overlay (on top of game world)
+      if (cutsceneActive) {
+        drawCutscene();
+      }
+
+      // Draw finale overlay (on top of everything)
+      if (finaleActive) {
+        drawFinale();
+      }
+
+      // Draw alphabet bar on top of everything (not during finale)
+      if (!finaleActive) {
+        drawAlphabetBar();
+      }
+
+      // Draw letter prompts (not during cutscene)
+      if (!cutsceneActive) {
+        drawLetterPrompt();
+      }
+
       requestAnimationFrame(gameLoop);
     }
 
@@ -1710,6 +3021,13 @@
 
     canvas.addEventListener('pointerdown', e => {
       e.preventDefault();
+      // Check for finale restart button click
+      if (finaleActive && finalePhase === 4) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        if (handleFinaleClick(cx, cy)) return;
+      }
       jump();
     });
 
