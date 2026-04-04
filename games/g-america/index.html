@@ -83,6 +83,7 @@
       <div class="touch-btn" data-key="ArrowRight">➡</div>
     </div>
     <div class="touch-actions">
+      <div class="touch-btn touch-btn-lg" data-key="KeyS" style="background:rgba(100,200,100,0.25);border-color:rgba(100,255,100,0.4)">🌪️</div>
       <div class="touch-btn touch-btn-lg touch-btn-bat" data-key="Enter">🦇</div>
       <div class="touch-btn touch-btn-lg" data-key="KeyZ">🛡️</div>
       <div class="touch-btn touch-btn-lg" data-key="KeyX">💥</div>
@@ -182,9 +183,15 @@
     enter:  { files: ['sprites/batman/run.png', 'sprites/batman/run2.png'], frames: 2 },
   };
 
+  // Tornado sprites
+  const tornadoSpriteDefs = {
+    spin: { path: 'sprites/tornado/', frames: 4, folder: true, prefix: 'tornado-', startIdx: 1 },
+  };
+
   const playerSprites = {};
   const enemySprites = {};
   const batmanSprites = {};
+  const tornadoSprites = {};
   let loadCount = 0, loadTotal = 0;
 
   function countFrames(defs) {
@@ -192,7 +199,7 @@
     for (const k in defs) c += defs[k].frames;
     return c;
   }
-  loadTotal = countFrames(playerSpriteDefs) + countFrames(enemySpriteDefs) + countFrames(batmanSpriteDefs);
+  loadTotal = countFrames(playerSpriteDefs) + countFrames(enemySpriteDefs) + countFrames(batmanSpriteDefs) + countFrames(tornadoSpriteDefs);
 
   function loadSpriteSet(defs, target, cb) {
     for (const k in defs) {
@@ -212,10 +219,11 @@
         img.src = d.path;
         target[k].push(img);
       } else {
+        const startIdx = d.startIdx || 0;
         for (let i = 0; i < d.frames; i++) {
           const img = new Image();
           img.onload = img.onerror = () => { loadCount++; if (loadCount >= loadTotal) cb(); };
-          img.src = d.path + (d.prefix || '') + i + '.png';
+          img.src = d.path + (d.prefix || '') + (i + startIdx) + '.png';
           target[k].push(img);
         }
       }
@@ -230,7 +238,7 @@
   window.addEventListener('keydown', e => {
     if (!keys[e.code]) keysJustPressed[e.code] = true;
     keys[e.code] = true;
-    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','KeyZ','KeyX','Enter'].includes(e.code)) e.preventDefault();
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','KeyZ','KeyX','KeyS','Enter'].includes(e.code)) e.preventDefault();
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -336,6 +344,285 @@
     }
   }
 
+  // ════════════════════════════════════════════════════════════
+  // TORNADO & WEATHER STATE
+  // ════════════════════════════════════════════════════════════
+  let tornadoActive = false;
+  let tornadoX = 0;
+  let tornadoY = 0;
+  let tornadoVx = 0;
+  let tornadoTimer = 0;
+  const TORNADO_DURATION = 10.0;
+  const TORNADO_SPEED = 120;
+  const TORNADO_DAMAGE = 2;       // damage per tick
+  const TORNADO_PULL_RANGE = 180;
+  const TORNADO_PULL_FORCE = 300;
+  const TORNADO_LIFT_FORCE = -400;
+  const TORNADO_SCALE = 0.6;
+  let tornadoAnimFrame = 0;
+  let tornadoAnimTimer = 0;
+
+  // Rain
+  const raindrops = [];
+  const MAX_RAINDROPS = 200;
+
+  // Flood water - rises continuously during each storm
+  let floodLevel = 0;           // current water height in pixels from bottom
+  let stormCount = 0;           // how many tornadoes have been spawned
+  const FLOOD_RISE_SPEED = 20;  // pixels per second rise during storm
+
+  // Lightning
+  let lightningTimer = 0;
+  let lightningFlash = 0;   // 0 = no flash, decreases from 1
+  let lightningBolts = [];   // stored bolt segments for drawing
+
+  function spawnRaindrops() {
+    while (raindrops.length < MAX_RAINDROPS) {
+      raindrops.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        speed: 400 + Math.random() * 300,
+        length: 10 + Math.random() * 15,
+      });
+    }
+  }
+
+  function updateRain(dt) {
+    for (const r of raindrops) {
+      r.y += r.speed * dt;
+      r.x -= 30 * dt; // slight wind
+      if (r.y > canvas.height) {
+        r.y = -r.length;
+        r.x = Math.random() * (canvas.width + 60);
+      }
+      if (r.x < -20) r.x = canvas.width + Math.random() * 20;
+    }
+  }
+
+  function drawRain() {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(180,200,255,0.35)';
+    ctx.lineWidth = 1.5;
+    for (const r of raindrops) {
+      ctx.beginPath();
+      ctx.moveTo(r.x, r.y);
+      ctx.lineTo(r.x - 3, r.y + r.length);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function triggerLightning() {
+    lightningFlash = 1.0;
+    // Generate bolt segments
+    lightningBolts = [];
+    const startX = canvas.width * (0.2 + Math.random() * 0.6);
+    let x = startX, y = 0;
+    const groundY = canvas.height * GROUND_Y_RATIO;
+    while (y < groundY) {
+      const nx = x + (Math.random() - 0.5) * 80;
+      const ny = y + 20 + Math.random() * 40;
+      lightningBolts.push({ x1: x, y1: y, x2: nx, y2: Math.min(ny, groundY) });
+      // Occasional branch
+      if (Math.random() < 0.3) {
+        const bx = nx + (Math.random() - 0.5) * 60;
+        const by = ny + 15 + Math.random() * 30;
+        lightningBolts.push({ x1: nx, y1: ny, x2: bx, y2: Math.min(by, groundY) });
+      }
+      x = nx;
+      y = ny;
+    }
+    shakeTimer = 0.2;
+    shakeIntensity = 6;
+  }
+
+  function drawLightning() {
+    if (lightningFlash <= 0) return;
+    // White screen flash
+    ctx.save();
+    ctx.fillStyle = `rgba(255,255,255,${lightningFlash * 0.3})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw bolt
+    if (lightningFlash > 0.5) {
+      ctx.strokeStyle = `rgba(255,255,255,${lightningFlash})`;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#aaccff';
+      ctx.shadowBlur = 20;
+      for (const seg of lightningBolts) {
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+      }
+      // Thinner bright core
+      ctx.strokeStyle = `rgba(200,220,255,${lightningFlash})`;
+      ctx.lineWidth = 1.5;
+      for (const seg of lightningBolts) {
+        ctx.beginPath();
+        ctx.moveTo(seg.x1, seg.y1);
+        ctx.lineTo(seg.x2, seg.y2);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  }
+
+  function spawnTornado() {
+    if (tornadoActive || gameOver) return;
+    tornadoActive = true;
+    tornadoTimer = TORNADO_DURATION;
+    stormCount++;
+    // Spawn from off-screen right, moving left
+    tornadoX = canvas.width + 100;
+    tornadoY = canvas.height * GROUND_Y_RATIO + 20; // lower position
+    tornadoVx = -TORNADO_SPEED;
+    tornadoAnimFrame = 0;
+    tornadoAnimTimer = 0;
+    // Start rain
+    spawnRaindrops();
+    lightningTimer = 1.0 + Math.random() * 1.5;
+    // Announce
+    batmanCallText = '🌪️ TORNADO INCOMING!';
+    batmanCallTimer = 2.0;
+    shakeTimer = 0.3;
+    shakeIntensity = 8;
+  }
+
+  function updateTornado(dt) {
+    if (!tornadoActive) return;
+    tornadoTimer -= dt;
+    if (tornadoTimer <= 0) {
+      tornadoActive = false;
+      raindrops.length = 0;
+      lightningFlash = 0;
+      lightningBolts = [];
+      return;
+    }
+
+    // Move tornado
+    tornadoX += tornadoVx * dt;
+    // Bounce off edges once on screen
+    if (tornadoX < 40) { tornadoX = 40; tornadoVx = Math.abs(tornadoVx); }
+    if (tornadoX > canvas.width - 40) { tornadoX = canvas.width - 40; tornadoVx = -Math.abs(tornadoVx); }
+
+    // Animate
+    tornadoAnimTimer += dt;
+    if (tornadoAnimTimer >= 1 / 8) {  // 8 FPS for tornado
+      tornadoAnimTimer -= 1 / 8;
+      tornadoAnimFrame = (tornadoAnimFrame + 1) % 4;
+    }
+
+    // Flood rises continuously during storm (capped at 60% of screen)
+    const maxFlood = canvas.height * 0.6;
+    if (floodLevel < maxFlood) {
+      floodLevel = Math.min(floodLevel + FLOOD_RISE_SPEED * dt, maxFlood);
+    }
+
+    // Pull and damage all fighters
+    const fighters = [player];
+    if (enemy) fighters.push(enemy);
+    if (batman && batman.active) fighters.push(batman);
+
+    for (const f of fighters) {
+      const dx = tornadoX - (f.x + f.w / 2);
+      const dist = Math.abs(dx);
+      if (dist < TORNADO_PULL_RANGE) {
+        // Pull toward tornado
+        const pullStrength = 1 - (dist / TORNADO_PULL_RANGE);
+        f.vx += Math.sign(dx) * TORNADO_PULL_FORCE * pullStrength * dt;
+        // Lift if very close
+        if (dist < 60) {
+          f.vy += TORNADO_LIFT_FORCE * dt;
+          f.grounded = false;
+          // Damage
+          f.hp -= TORNADO_DAMAGE * dt * 10;
+          if (f.hp < 0) f.hp = 0;
+          // Hurt visual
+          if (f.hurtTimer <= 0) {
+            f.hurtTimer = 0.15;
+            f.state = 'hurt';
+          }
+        }
+      }
+    }
+
+    // Rain
+    updateRain(dt);
+
+    // Lightning
+    lightningTimer -= dt;
+    if (lightningTimer <= 0) {
+      triggerLightning();
+      lightningTimer = 1.5 + Math.random() * 2.5;
+    }
+    if (lightningFlash > 0) lightningFlash -= dt * 2.5;
+    if (lightningFlash < 0) lightningFlash = 0;
+  }
+
+  function drawTornado() {
+    if (!tornadoActive) return;
+    const spriteArr = tornadoSprites.spin;
+    if (!spriteArr || spriteArr.length === 0) return;
+    const img = spriteArr[tornadoAnimFrame % spriteArr.length];
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+
+    const drawW = img.naturalWidth * TORNADO_SCALE;
+    const drawH = img.naturalHeight * TORNADO_SCALE;
+
+    ctx.save();
+    // Slight transparency oscillation
+    ctx.globalAlpha = 0.8 + Math.sin(gameTime * 5) * 0.15;
+    // Draw with bottom of tornado touching ground (tornadoY is ground level + offset)
+    ctx.drawImage(img, tornadoX - drawW / 2, tornadoY - drawH * 0.85, drawW, drawH);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function drawFloodWater() {
+    if (floodLevel <= 0) return;
+    const W = canvas.width;
+    const H = canvas.height;
+    const waterTop = H - floodLevel;
+
+    ctx.save();
+
+    // Animated wave effect
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(0, waterTop);
+    // Wavy top edge
+    for (let x = 0; x <= W; x += 8) {
+      const waveY = waterTop + Math.sin(x * 0.03 + gameTime * 3) * 4
+                              + Math.sin(x * 0.015 + gameTime * 2) * 3;
+      ctx.lineTo(x, waveY);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+
+    // Semi-transparent blue water
+    const waterGrad = ctx.createLinearGradient(0, waterTop, 0, H);
+    waterGrad.addColorStop(0, 'rgba(30,80,160,0.45)');
+    waterGrad.addColorStop(0.3, 'rgba(20,60,140,0.55)');
+    waterGrad.addColorStop(1, 'rgba(10,30,80,0.7)');
+    ctx.fillStyle = waterGrad;
+    ctx.fill();
+
+    // Surface shimmer
+    ctx.strokeStyle = 'rgba(150,200,255,0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 8) {
+      const waveY = waterTop + Math.sin(x * 0.03 + gameTime * 3) * 4
+                              + Math.sin(x * 0.015 + gameTime * 2) * 3;
+      if (x === 0) ctx.moveTo(x, waveY);
+      else ctx.lineTo(x, waveY);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
   function resetRound() {
     const groundY = canvas.height * GROUND_Y_RATIO;
     player = createFighter(canvas.width * 0.25, true, SPRITE_SCALE_PLAYER, MAX_HP);
@@ -357,6 +644,11 @@
     batAiAction = 'idle';
     aiTimer = 0;
     aiAction = 'idle';
+    tornadoActive = false;
+    tornadoTimer = 0;
+    raindrops.length = 0;
+    lightningFlash = 0;
+    lightningBolts = [];
   }
 
   function resetMatch() {
@@ -364,6 +656,8 @@
     enemyRounds = 0;
     gameOver = false;
     winner = '';
+    stormCount = 0;
+    floodLevel = 0;
     resetRound();
   }
 
@@ -503,6 +797,11 @@
     // Summon Batman (Enter)
     if (keysJustPressed['Enter']) {
       summonBatman();
+    }
+
+    // Summon Tornado (S)
+    if (keysJustPressed['KeyS']) {
+      spawnTornado();
     }
 
     if (keys['Space']) {
@@ -1014,6 +1313,7 @@
     updatePlayer(dt);
     updateEnemy(dt);
     updateBatman(dt);
+    updateTornado(dt);
     updateParticles(dt);
 
     // Push fighters apart
@@ -1090,6 +1390,12 @@
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, H);
 
+    // Storm darkening overlay
+    if (tornadoActive) {
+      ctx.fillStyle = 'rgba(0,0,15,0.4)';
+      ctx.fillRect(0, 0, W, H);
+    }
+
     // City skyline
     ctx.fillStyle = 'rgba(15,25,45,0.8)';
     const buildings = [
@@ -1160,6 +1466,12 @@
       ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
     }
     ctx.globalAlpha = 1;
+
+    // ── Tornado + Weather ──
+    drawTornado();
+    if (tornadoActive) drawRain();
+    drawLightning();
+    drawFloodWater();
 
     ctx.restore(); // end screen shake
 
@@ -1372,7 +1684,7 @@
       ctx.font = `${Math.min(11, W * 0.018)}px "Segoe UI", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      ctx.fillText('← → Move | ↑ Jump | ↓ Kneel | SPACE Punch | X Push | Z Block | SHIFT Run | ENTER Batman | R Restart', W / 2, canvas.height - 5);
+      ctx.fillText('← → Move | ↑ Jump | ↓ Kneel | SPACE Punch | X Push | Z Block | SHIFT Run | S Tornado | ENTER Batman | R Restart', W / 2, canvas.height - 5);
     }
   }
 
@@ -1422,6 +1734,7 @@
   loadSpriteSet(playerSpriteDefs, playerSprites, () => {});
   loadSpriteSet(enemySpriteDefs, enemySprites, () => {});
   loadSpriteSet(batmanSpriteDefs, batmanSprites, () => {});
+  loadSpriteSet(tornadoSpriteDefs, tornadoSprites, () => {});
 
   const checkLoaded = setInterval(() => {
     if (loadCount >= loadTotal) {
