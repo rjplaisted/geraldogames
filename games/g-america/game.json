@@ -1,0 +1,8 @@
+{
+  "name": "G-America vs Dark Knight!",
+  "description": "Fight as G-America against the evil Dark Knight! Use arrow keys to move, Space to punch, X to push, Z to block. Press ENTER to call Batman for backup! First to win 2 rounds wins!",
+  "emoji": "🇺🇸",
+  "minAge": 4,
+  "maxAge": 8,
+  "tags": ["action", "fighting", "versus"]
+}

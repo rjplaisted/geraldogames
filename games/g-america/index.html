@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>G-America vs Dark Knight!</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; font-family: 'Segoe UI', sans-serif;
+      background: #0a1628; color: #fff;
+      display: flex; flex-direction: column;
+      touch-action: manipulation; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+    }
+    header {
+      padding: 0.5rem 0.8rem;
+      display: flex; align-items: center; gap: 0.6rem;
+      background: rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+    .back-btn {
+      font-size: 1.8rem; text-decoration: none; line-height: 1;
+      background: rgba(255,255,255,0.85); border-radius: 12px;
+      width: 2.6rem; height: 2.6rem;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
+    }
+    .back-btn:active { transform: translateY(2px); }
+    header h1 { font-size: 1.1rem; font-weight: 900; }
+    #game-wrapper {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+    }
+    canvas { display: block; }
+
+    /* Touch controls */
+    #touch-controls {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 0.8rem; z-index: 20;
+      pointer-events: none;
+    }
+    @media (pointer: coarse) {
+      #touch-controls { display: flex; justify-content: space-between; align-items: flex-end; }
+    }
+    .touch-dpad {
+      display: grid;
+      grid-template-columns: 52px 52px 52px;
+      grid-template-rows: 52px 52px;
+      gap: 3px; pointer-events: auto;
+    }
+    .touch-btn {
+      width: 52px; height: 52px;
+      background: rgba(255,255,255,0.12);
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 12px; color: #fff; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: auto;
+    }
+    .touch-btn:active, .touch-btn.active { background: rgba(255,255,255,0.35); }
+    .touch-actions { display: flex; gap: 5px; align-items: flex-end; pointer-events: auto; }
+    .touch-btn-lg { width: 62px; height: 62px; font-size: 1.3rem; }
+    .touch-btn-bat { background: rgba(80,80,200,0.25); border-color: rgba(100,100,255,0.4); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back-btn" href="/" title="Home">🏠</a>
+    <h1>🇺🇸 G-America vs Dark Knight!</h1>
+  </header>
+  <div id="game-wrapper"><canvas id="game"></canvas></div>
+
+  <div id="touch-controls">
+    <div class="touch-dpad">
+      <div></div>
+      <div class="touch-btn" data-key="ArrowUp">⬆</div>
+      <div></div>
+      <div class="touch-btn" data-key="ArrowLeft">⬅</div>
+      <div class="touch-btn" data-key="ArrowDown">⬇</div>
+      <div class="touch-btn" data-key="ArrowRight">➡</div>
+    </div>
+    <div class="touch-actions">
+      <div class="touch-btn touch-btn-lg touch-btn-bat" data-key="Enter">🦇</div>
+      <div class="touch-btn touch-btn-lg" data-key="KeyZ">🛡️</div>
+      <div class="touch-btn touch-btn-lg" data-key="KeyX">💥</div>
+      <div class="touch-btn touch-btn-lg" data-key="Space">👊</div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ════════════════════════════════════════════════════════════
+  // CANVAS
+  // ════════════════════════════════════════════════════════════
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const wrapper = document.getElementById('game-wrapper');
+
+  function resize() {
+    canvas.width = wrapper.clientWidth;
+    canvas.height = wrapper.clientHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ════════════════════════════════════════════════════════════
+  // CONSTANTS
+  // ════════════════════════════════════════════════════════════
+  const GRAVITY = 1800;
+  const JUMP_VEL = -700;
+  const WALK_SPEED = 220;
+  const RUN_SPEED = 400;
+  const ANIM_FPS = 10;
+  const GROUND_Y_RATIO = 0.78;
+  const SPRITE_SCALE_PLAYER = 0.55;
+  const SPRITE_SCALE_ENEMY = 0.55;
+  const SPRITE_SCALE_BATMAN = 0.55;
+  const PUNCH_DAMAGE = 8;
+  const PUSH_DAMAGE = 12;
+  const PUNCH_RANGE = 70;
+  const PUSH_RANGE = 60;
+  const HURT_TIME = 0.35;
+  const PUNCH_TIME = 0.3;
+  const PUSH_TIME = 0.35;
+  const BLOCK_DAMAGE_MULT = 0.2;
+  const KNOCKBACK = 250;
+  const MAX_HP = 100;
+  const ENEMY_MAX_HP_SOLO = 100;
+  const ENEMY_MAX_HP_DUO = 160;  // enemy gets tougher when batman joins
+  const ROUND_WIN_SCORE = 2;
+  const ROUND_PAUSE = 2.0;
+  const AI_REACTION_TIME = 0.4;
+  const SCARY_TIME = 1.5;
+  const BATMAN_ENTER_SPEED = 350;
+
+  // ════════════════════════════════════════════════════════════
+  // SPRITE DEFINITIONS
+  // ════════════════════════════════════════════════════════════
+  // G-America sprites
+  const playerSpriteDefs = {
+    stand:  { path: 'sprites/stand.png', frames: 1, folder: false },
+    kneel:  { path: 'sprites/kneel.png', frames: 1, folder: false },
+    block:  { path: 'sprites/block.png', frames: 1, folder: false },
+    walk:   { path: 'sprites/walk/',     frames: 5, folder: true, prefix: 'G-America-' },
+    run:    { path: 'sprites/run/',      frames: 4, folder: true, prefix: 'G-America-' },
+    jump:   { path: 'sprites/jump/',     frames: 4, folder: true, prefix: 'G-America-' },
+    punch:  { path: 'sprites/punch/',    frames: 3, folder: true, prefix: 'G-America-' },
+    hurt:   { path: 'sprites/hurt/',     frames: 3, folder: true, prefix: 'G-America-' },
+    push:   { path: 'sprites/push/',     frames: 3, folder: true, prefix: 'G-America-' },
+  };
+
+  // Bad Guy sprites
+  const enemySpriteDefs = {
+    stand:  { path: 'sprites/badguy/walk/BadGuy-0.png', frames: 1, folder: false },
+    kneel:  { path: 'sprites/badguy/kneel.png', frames: 1, folder: false },
+    block:  { path: 'sprites/badguy/kneel.png', frames: 1, folder: false },
+    walk:   { path: 'sprites/badguy/walk/',   frames: 3, folder: true, prefix: 'BadGuy-' },
+    run:    { path: 'sprites/badguy/run/',    frames: 2, folder: true, prefix: 'BadGuy-' },
+    jump:   { path: 'sprites/badguy/jump.png', frames: 1, folder: false },
+    punch:  { path: 'sprites/badguy/punch.png', frames: 1, folder: false },
+    hurt:   { path: 'sprites/badguy/scary/BadGuy-0.png', frames: 1, folder: false },
+    push:   { path: 'sprites/badguy/push/',   frames: 2, folder: true, prefix: 'BadGuy-' },
+    scary:  { path: 'sprites/badguy/scary/',  frames: 2, folder: true, prefix: 'BadGuy-' },
+  };
+
+  // Batman sprites (individual files, use 'files' array for multi-frame)
+  const batmanSpriteDefs = {
+    stand:  { files: ['sprites/batman/stand.png', 'sprites/batman/stand2.png'], frames: 2 },
+    block:  { path: 'sprites/batman/shield.png', frames: 1, folder: false },
+    kneel:  { path: 'sprites/batman/shield.png', frames: 1, folder: false },
+    run:    { files: ['sprites/batman/run.png', 'sprites/batman/run2.png'], frames: 2 },
+    walk:   { files: ['sprites/batman/run.png', 'sprites/batman/run2.png'], frames: 2 },
+    jump:   { path: 'sprites/batman/jump.png', frames: 1, folder: false },
+    punch:  { path: 'sprites/batman/punch.png', frames: 1, folder: false },
+    hurt:   { files: ['sprites/batman/hurt.png', 'sprites/batman/hurt2.png'], frames: 2 },
+    push:   { path: 'sprites/batman/punch.png', frames: 1, folder: false },  // reuse punch for push
+    enter:  { files: ['sprites/batman/run.png', 'sprites/batman/run2.png'], frames: 2 },
+  };
+
+  const playerSprites = {};
+  const enemySprites = {};
+  const batmanSprites = {};
+  let loadCount = 0, loadTotal = 0;
+
+  function countFrames(defs) {
+    let c = 0;
+    for (const k in defs) c += defs[k].frames;
+    return c;
+  }
+  loadTotal = countFrames(playerSpriteDefs) + countFrames(enemySpriteDefs) + countFrames(batmanSpriteDefs);
+
+  function loadSpriteSet(defs, target, cb) {
+    for (const k in defs) {
+      const d = defs[k];
+      target[k] = [];
+      if (d.files) {
+        // Individual file list
+        for (let i = 0; i < d.files.length; i++) {
+          const img = new Image();
+          img.onload = img.onerror = () => { loadCount++; if (loadCount >= loadTotal) cb(); };
+          img.src = d.files[i];
+          target[k].push(img);
+        }
+      } else if (!d.folder) {
+        const img = new Image();
+        img.onload = img.onerror = () => { loadCount++; if (loadCount >= loadTotal) cb(); };
+        img.src = d.path;
+        target[k].push(img);
+      } else {
+        for (let i = 0; i < d.frames; i++) {
+          const img = new Image();
+          img.onload = img.onerror = () => { loadCount++; if (loadCount >= loadTotal) cb(); };
+          img.src = d.path + (d.prefix || '') + i + '.png';
+          target[k].push(img);
+        }
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // INPUT
+  // ════════════════════════════════════════════════════════════
+  const keys = {};
+  const keysJustPressed = {};
+  window.addEventListener('keydown', e => {
+    if (!keys[e.code]) keysJustPressed[e.code] = true;
+    keys[e.code] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','KeyZ','KeyX','Enter'].includes(e.code)) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  // Touch controls
+  document.querySelectorAll('.touch-btn').forEach(btn => {
+    const k = btn.dataset.key;
+    const on = () => { if (!keys[k]) keysJustPressed[k] = true; keys[k] = true; btn.classList.add('active'); };
+    const off = () => { keys[k] = false; btn.classList.remove('active'); };
+    btn.addEventListener('touchstart', e => { e.preventDefault(); on(); });
+    btn.addEventListener('touchend', e => { e.preventDefault(); off(); });
+    btn.addEventListener('touchcancel', off);
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // FIGHTER FACTORY
+  // ════════════════════════════════════════════════════════════
+  function createFighter(x, facingRight, spriteScale, maxHp) {
+    return {
+      x, y: 0,
+      vx: 0, vy: 0,
+      w: 50, h: 80,
+      facingRight,
+      grounded: true,
+      state: 'stand',
+      animFrame: 0, animTimer: 0,
+      punchTimer: 0,
+      pushTimer: 0,
+      hurtTimer: 0,
+      blockTimer: 0,
+      scaryTimer: 0,
+      hp: maxHp || MAX_HP,
+      maxHp: maxHp || MAX_HP,
+      spriteScale,
+      lastAttackTime: 0,
+      comboCount: 0,
+      active: true,
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // GAME STATE
+  // ════════════════════════════════════════════════════════════
+  let player, enemy, batman;
+  let batmanSummoned = false;
+  let batmanEntering = false;  // true while batman runs in from off-screen
+  let batmanUsedThisRound = false;
+  let playerRounds = 0, enemyRounds = 0;
+  let roundPause = 0;
+  let gameOver = false;
+  let winner = '';
+  let shakeTimer = 0;
+  let shakeIntensity = 0;
+  let gameTime = 0;
+  let comboText = '';
+  let comboTextTimer = 0;
+  let batmanCallText = '';
+  let batmanCallTimer = 0;
+
+  // Particles
+  const particles = [];
+
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 300,
+        vy: (Math.random() - 1) * 250,
+        life: 0.3 + Math.random() * 0.3,
+        color,
+        size: 3 + Math.random() * 5,
+      });
+    }
+  }
+
+  function spawnHitSpark(x, y) {
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 200;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.15 + Math.random() * 0.15,
+        color: Math.random() > 0.5 ? '#fff' : '#FFD700',
+        size: 2 + Math.random() * 4,
+      });
+    }
+  }
+
+  function spawnBatSignal(x, y) {
+    // Bat-themed dark blue/purple particles
+    for (let i = 0; i < 15; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 50 + Math.random() * 150;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 100,
+        life: 0.5 + Math.random() * 0.5,
+        color: Math.random() > 0.5 ? '#4466cc' : '#2233aa',
+        size: 4 + Math.random() * 6,
+      });
+    }
+  }
+
+  function resetRound() {
+    const groundY = canvas.height * GROUND_Y_RATIO;
+    player = createFighter(canvas.width * 0.25, true, SPRITE_SCALE_PLAYER, MAX_HP);
+    enemy = createFighter(canvas.width * 0.75, false, SPRITE_SCALE_ENEMY, ENEMY_MAX_HP_SOLO);
+    player.y = groundY - player.h;
+    enemy.y = groundY - enemy.h;
+    batman = null;
+    batmanSummoned = false;
+    batmanEntering = false;
+    batmanUsedThisRound = false;
+    roundPause = 1.5;
+    particles.length = 0;
+    shakeTimer = 0;
+    comboText = '';
+    comboTextTimer = 0;
+    batmanCallText = '';
+    batmanCallTimer = 0;
+    batAiTimer = 0;
+    batAiAction = 'idle';
+    aiTimer = 0;
+    aiAction = 'idle';
+  }
+
+  function resetMatch() {
+    playerRounds = 0;
+    enemyRounds = 0;
+    gameOver = false;
+    winner = '';
+    resetRound();
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // SUMMON BATMAN
+  // ════════════════════════════════════════════════════════════
+  function summonBatman() {
+    if (batmanSummoned || batmanUsedThisRound || gameOver) return;
+    batmanSummoned = true;
+    batmanUsedThisRound = true;
+    batmanEntering = true;
+
+    const groundY = canvas.height * GROUND_Y_RATIO;
+    batman = createFighter(canvas.width + 80, true, SPRITE_SCALE_BATMAN, 80);
+    batman.y = groundY - batman.h;
+    batman.state = 'enter';
+    batman.facingRight = false; // entering from right, facing left toward enemy
+
+    // Boost enemy HP when batman joins
+    const hpBoost = ENEMY_MAX_HP_DUO - enemy.maxHp;
+    if (hpBoost > 0) {
+      enemy.maxHp = ENEMY_MAX_HP_DUO;
+      enemy.hp = Math.min(enemy.hp + hpBoost * 0.6, ENEMY_MAX_HP_DUO);
+    }
+
+    // Effects
+    batmanCallText = 'BATMAN JOINS THE FIGHT!';
+    batmanCallTimer = 2.0;
+    shakeTimer = 0.3;
+    shakeIntensity = 6;
+    spawnBatSignal(canvas.width * 0.75, groundY - 60);
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // ATTACK LOGIC
+  // ════════════════════════════════════════════════════════════
+  function tryAttack(attacker, defender, type) {
+    const range = type === 'punch' ? PUNCH_RANGE : PUSH_RANGE;
+    const damage = type === 'punch' ? PUNCH_DAMAGE : PUSH_DAMAGE;
+    const duration = type === 'punch' ? PUNCH_TIME : PUSH_TIME;
+
+    const dx = defender.x - attacker.x;
+    const inRange = Math.abs(dx) < range + attacker.w * 0.5;
+    const yOverlap = Math.abs(attacker.y - defender.y) < attacker.h * 0.8;
+
+    if (type === 'punch') {
+      attacker.punchTimer = duration;
+    } else {
+      attacker.pushTimer = duration;
+    }
+    attacker.state = type;
+    attacker.animFrame = 0;
+    attacker.animTimer = 0;
+    attacker.vx = 0;
+
+    if (inRange && yOverlap) {
+      const now = gameTime;
+      if (now - attacker.lastAttackTime < 0.8) {
+        attacker.comboCount++;
+      } else {
+        attacker.comboCount = 1;
+      }
+      attacker.lastAttackTime = now;
+
+      let actualDamage = damage;
+      if (attacker.comboCount >= 3) {
+        actualDamage = damage * 1.5;
+        comboText = attacker.comboCount + ' HIT COMBO!';
+        comboTextTimer = 1.0;
+      }
+
+      if (defender.state === 'block' || defender.state === 'kneel') {
+        actualDamage *= BLOCK_DAMAGE_MULT;
+        spawnParticles(defender.x + defender.w / 2, defender.y + defender.h / 2, '#4488ff', 4);
+      } else {
+        defender.hurtTimer = HURT_TIME;
+        defender.state = 'hurt';
+        defender.animFrame = 0;
+        defender.animTimer = 0;
+        const kb = attacker.facingRight ? KNOCKBACK : -KNOCKBACK;
+        defender.vx = kb;
+        defender.vy = -150;
+        shakeTimer = 0.15;
+        shakeIntensity = type === 'push' ? 8 : 4;
+      }
+
+      defender.hp -= actualDamage;
+      if (defender.hp < 0) defender.hp = 0;
+
+      const hitX = (attacker.x + defender.x) / 2 + attacker.w / 2;
+      const hitY = attacker.y + attacker.h * 0.4;
+      spawnHitSpark(hitX, hitY);
+      spawnParticles(hitX, hitY, '#ff4444', 6);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // PLAYER UPDATE
+  // ════════════════════════════════════════════════════════════
+  function updatePlayer(dt) {
+    const groundY = canvas.height * GROUND_Y_RATIO;
+    const p = player;
+
+    // Hurt lock
+    if (p.hurtTimer > 0) {
+      p.hurtTimer -= dt;
+      p.state = 'hurt';
+      p.vy += GRAVITY * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.92;
+      if (p.y + p.h >= groundY) { p.y = groundY - p.h; p.vy = 0; p.grounded = true; }
+      updateAnimGeneric(p, playerSpriteDefs, dt);
+      return;
+    }
+
+    if (p.punchTimer > 0) {
+      p.punchTimer -= dt;
+      p.state = 'punch';
+      p.vy += GRAVITY * dt;
+      p.y += p.vy * dt;
+      if (p.y + p.h >= groundY) { p.y = groundY - p.h; p.vy = 0; p.grounded = true; }
+      updateAnimGeneric(p, playerSpriteDefs, dt);
+      return;
+    }
+
+    if (p.pushTimer > 0) {
+      p.pushTimer -= dt;
+      p.state = 'push';
+      p.vy += GRAVITY * dt;
+      p.y += p.vy * dt;
+      if (p.y + p.h >= groundY) { p.y = groundY - p.h; p.vy = 0; p.grounded = true; }
+      updateAnimGeneric(p, playerSpriteDefs, dt);
+      return;
+    }
+
+    // Summon Batman (Enter)
+    if (keysJustPressed['Enter']) {
+      summonBatman();
+    }
+
+    if (keys['Space']) {
+      tryAttack(p, enemy, 'punch');
+      return;
+    }
+
+    if (keys['KeyX']) {
+      tryAttack(p, enemy, 'push');
+      return;
+    }
+
+    if (keys['KeyZ'] && p.grounded) {
+      p.state = 'block';
+      p.vx = 0;
+      updateAnimGeneric(p, playerSpriteDefs, dt);
+      p.vy += GRAVITY * dt;
+      p.y += p.vy * dt;
+      if (p.y + p.h >= groundY) { p.y = groundY - p.h; p.vy = 0; p.grounded = true; }
+      return;
+    }
+
+    if (keys['ArrowDown'] && p.grounded) {
+      p.state = 'kneel';
+      p.vx = 0;
+      updateAnimGeneric(p, playerSpriteDefs, dt);
+      return;
+    }
+
+    const shifting = keys['ShiftLeft'] || keys['ShiftRight'];
+    if (keys['ArrowLeft']) {
+      p.facingRight = false;
+      p.vx = shifting ? -RUN_SPEED : -WALK_SPEED;
+    } else if (keys['ArrowRight']) {
+      p.facingRight = true;
+      p.vx = shifting ? RUN_SPEED : WALK_SPEED;
+    } else {
+      p.vx = 0;
+    }
+
+    if (keys['ArrowUp'] && p.grounded) {
+      p.vy = JUMP_VEL;
+      p.grounded = false;
+    }
+
+    if (!p.grounded) {
+      p.state = 'jump';
+    } else if (Math.abs(p.vx) > RUN_SPEED - 10) {
+      p.state = 'run';
+    } else if (p.vx !== 0) {
+      p.state = 'walk';
+    } else {
+      p.state = 'stand';
+    }
+
+    p.vy += GRAVITY * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    if (p.y + p.h >= groundY) {
+      p.y = groundY - p.h;
+      p.vy = 0;
+      p.grounded = true;
+    }
+
+    if (p.x < 10) p.x = 10;
+    if (p.x + p.w > canvas.width - 10) p.x = canvas.width - p.w - 10;
+
+    updateAnimGeneric(p, playerSpriteDefs, dt);
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // BATMAN AI UPDATE
+  // ════════════════════════════════════════════════════════════
+  let batAiTimer = 0;
+  let batAiAction = 'idle';
+
+  function updateBatman(dt) {
+    if (!batman || !batman.active) return;
+
+    const groundY = canvas.height * GROUND_Y_RATIO;
+    const b = batman;
+
+    // Entering animation - run from right to position
+    if (batmanEntering) {
+      b.state = 'run';
+      b.facingRight = false;
+      const targetX = enemy.x + enemy.w + 40; // position behind/beside enemy
+      b.x -= BATMAN_ENTER_SPEED * dt;
+      b.y = groundY - b.h;
+
+      updateAnimGeneric(b, batmanSpriteDefs, dt);
+
+      if (b.x <= targetX || b.x <= canvas.width * 0.6) {
+        batmanEntering = false;
+        b.facingRight = enemy.x > b.x;
+      }
+      return;
+    }
+
+    // Dead check
+    if (b.hp <= 0) {
+      b.active = false;
+      spawnParticles(b.x + b.w / 2, b.y + b.h / 2, '#4466cc', 15);
+      batmanCallText = 'BATMAN IS DOWN!';
+      batmanCallTimer = 1.5;
+      return;
+    }
+
+    // Hurt lock
+    if (b.hurtTimer > 0) {
+      b.hurtTimer -= dt;
+      b.state = 'hurt';
+      b.vy += GRAVITY * dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.vx *= 0.92;
+      if (b.y + b.h >= groundY) { b.y = groundY - b.h; b.vy = 0; b.grounded = true; }
+      updateAnimGeneric(b, batmanSpriteDefs, dt);
+      return;
+    }
+
+    if (b.punchTimer > 0) {
+      b.punchTimer -= dt;
+      b.state = 'punch';
+      b.vy += GRAVITY * dt;
+      b.y += b.vy * dt;
+      if (b.y + b.h >= groundY) { b.y = groundY - b.h; b.vy = 0; b.grounded = true; }
+      updateAnimGeneric(b, batmanSpriteDefs, dt);
+      return;
+    }
+
+    if (b.pushTimer > 0) {
+      b.pushTimer -= dt;
+      b.state = 'push';
+      b.vy += GRAVITY * dt;
+      b.y += b.vy * dt;
+      if (b.y + b.h >= groundY) { b.y = groundY - b.h; b.vy = 0; b.grounded = true; }
+      updateAnimGeneric(b, batmanSpriteDefs, dt);
+      return;
+    }
+
+    // AI decision
+    batAiTimer -= dt;
+    if (batAiTimer <= 0) {
+      batAiTimer = 0.3 + Math.random() * 0.25;
+      decideBatmanAction();
+    }
+
+    b.facingRight = enemy.x > b.x;
+
+    switch (batAiAction) {
+      case 'approach':
+        b.vx = b.facingRight ? WALK_SPEED * 0.9 : -WALK_SPEED * 0.9;
+        b.state = 'walk';
+        break;
+      case 'rush':
+        b.vx = b.facingRight ? RUN_SPEED * 0.8 : -RUN_SPEED * 0.8;
+        b.state = 'run';
+        break;
+      case 'punch':
+        tryAttack(b, enemy, 'punch');
+        batAiAction = 'idle';
+        return;
+      case 'push':
+        tryAttack(b, enemy, 'push');
+        batAiAction = 'idle';
+        return;
+      case 'block':
+        b.state = 'block';
+        b.vx = 0;
+        break;
+      case 'jump':
+        if (b.grounded) {
+          b.vy = JUMP_VEL * 0.85;
+          b.grounded = false;
+          b.vx = b.facingRight ? WALK_SPEED * 0.6 : -WALK_SPEED * 0.6;
+        }
+        b.state = 'jump';
+        break;
+      case 'retreat':
+        b.vx = b.facingRight ? -WALK_SPEED * 0.5 : WALK_SPEED * 0.5;
+        b.state = 'walk';
+        break;
+      default:
+        b.vx = 0;
+        if (b.grounded) b.state = 'stand';
+        break;
+    }
+
+    if (!b.grounded) b.state = 'jump';
+
+    b.vy += GRAVITY * dt;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+
+    if (b.y + b.h >= groundY) {
+      b.y = groundY - b.h;
+      b.vy = 0;
+      b.grounded = true;
+    }
+
+    if (b.x < 10) b.x = 10;
+    if (b.x + b.w > canvas.width - 10) b.x = canvas.width - b.w - 10;
+
+    updateAnimGeneric(b, batmanSpriteDefs, dt);
+  }
+
+  function decideBatmanAction() {
+    const dist = Math.abs(enemy.x - batman.x);
+    const hpRatio = batman.hp / batman.maxHp;
+    const enemyAttacking = enemy.state === 'punch' || enemy.state === 'push';
+    const rand = Math.random();
+
+    // Batman is more aggressive than the bad guy AI
+    if (dist < PUNCH_RANGE + 25) {
+      if (enemyAttacking && rand < 0.35) {
+        batAiAction = 'block';
+      } else if (rand < 0.45) {
+        batAiAction = 'punch';
+      } else if (rand < 0.65) {
+        batAiAction = 'push';
+      } else if (rand < 0.8) {
+        batAiAction = 'jump';
+      } else {
+        batAiAction = 'retreat';
+      }
+    } else if (dist < 180) {
+      if (rand < 0.5) batAiAction = 'rush';
+      else if (rand < 0.7) batAiAction = 'approach';
+      else if (rand < 0.85) batAiAction = 'jump';
+      else batAiAction = 'idle';
+    } else {
+      if (rand < 0.6) batAiAction = 'rush';
+      else if (rand < 0.8) batAiAction = 'approach';
+      else batAiAction = 'jump';
+    }
+
+    // Low HP = more defensive
+    if (hpRatio < 0.3 && rand < 0.4) {
+      batAiAction = 'block';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // ENEMY AI UPDATE
+  // ════════════════════════════════════════════════════════════
+  let aiTimer = 0;
+  let aiAction = 'idle';
+
+  function updateEnemy(dt) {
+    const groundY = canvas.height * GROUND_Y_RATIO;
+    const e = enemy;
+
+    if (e.hurtTimer > 0) {
+      e.hurtTimer -= dt;
+      e.state = 'hurt';
+      e.vy += GRAVITY * dt;
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+      e.vx *= 0.92;
+      if (e.y + e.h >= groundY) { e.y = groundY - e.h; e.vy = 0; e.grounded = true; }
+      updateAnimGeneric(e, enemySpriteDefs, dt);
+      return;
+    }
+
+    if (e.scaryTimer > 0) {
+      e.scaryTimer -= dt;
+      e.state = 'scary';
+      e.vx = 0;
+      updateAnimGeneric(e, enemySpriteDefs, dt);
+      return;
+    }
+
+    if (e.punchTimer > 0) {
+      e.punchTimer -= dt;
+      e.state = 'punch';
+      e.vy += GRAVITY * dt;
+      e.y += e.vy * dt;
+      if (e.y + e.h >= groundY) { e.y = groundY - e.h; e.vy = 0; e.grounded = true; }
+      updateAnimGeneric(e, enemySpriteDefs, dt);
+      return;
+    }
+
+    if (e.pushTimer > 0) {
+      e.pushTimer -= dt;
+      e.state = 'push';
+      e.vy += GRAVITY * dt;
+      e.y += e.vy * dt;
+      if (e.y + e.h >= groundY) { e.y = groundY - e.h; e.vy = 0; e.grounded = true; }
+      updateAnimGeneric(e, enemySpriteDefs, dt);
+      return;
+    }
+
+    aiTimer -= dt;
+    if (aiTimer <= 0) {
+      aiTimer = AI_REACTION_TIME + Math.random() * 0.3;
+      decideEnemyAction();
+    }
+
+    // Pick closest threat to face
+    let target = player;
+    if (batman && batman.active && !batmanEntering) {
+      const distPlayer = Math.abs(player.x - e.x);
+      const distBatman = Math.abs(batman.x - e.x);
+      target = distBatman < distPlayer ? batman : player;
+    }
+
+    e.facingRight = target.x > e.x;
+
+    switch (aiAction) {
+      case 'approach':
+        e.vx = e.facingRight ? WALK_SPEED * 0.8 : -WALK_SPEED * 0.8;
+        e.state = 'walk';
+        break;
+      case 'rush':
+        e.vx = e.facingRight ? RUN_SPEED * 0.7 : -RUN_SPEED * 0.7;
+        e.state = 'run';
+        break;
+      case 'punch':
+        tryAttack(e, target, 'punch');
+        aiAction = 'idle';
+        return;
+      case 'push':
+        tryAttack(e, target, 'push');
+        aiAction = 'idle';
+        return;
+      case 'block':
+        e.state = 'block';
+        e.vx = 0;
+        break;
+      case 'kneel':
+        e.state = 'kneel';
+        e.vx = 0;
+        break;
+      case 'jump':
+        if (e.grounded) {
+          e.vy = JUMP_VEL * 0.9;
+          e.grounded = false;
+          e.vx = e.facingRight ? WALK_SPEED * 0.5 : -WALK_SPEED * 0.5;
+        }
+        e.state = 'jump';
+        break;
+      case 'scary':
+        e.scaryTimer = SCARY_TIME;
+        e.state = 'scary';
+        e.vx = 0;
+        aiAction = 'idle';
+        return;
+      case 'retreat':
+        e.vx = e.facingRight ? -WALK_SPEED * 0.6 : WALK_SPEED * 0.6;
+        e.state = 'walk';
+        break;
+      default:
+        e.vx = 0;
+        if (e.grounded) e.state = 'stand';
+        break;
+    }
+
+    if (!e.grounded) e.state = 'jump';
+
+    e.vy += GRAVITY * dt;
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+
+    if (e.y + e.h >= groundY) {
+      e.y = groundY - e.h;
+      e.vy = 0;
+      e.grounded = true;
+    }
+
+    if (e.x < 10) e.x = 10;
+    if (e.x + e.w > canvas.width - 10) e.x = canvas.width - e.w - 10;
+
+    updateAnimGeneric(e, enemySpriteDefs, dt);
+  }
+
+  function decideEnemyAction() {
+    // When batman is active, enemy fights smarter and more defensively
+    const hasBatman = batman && batman.active && !batmanEntering;
+    const distPlayer = Math.abs(player.x - enemy.x);
+    const distBatman = hasBatman ? Math.abs(batman.x - enemy.x) : 9999;
+    const closestDist = Math.min(distPlayer, distBatman);
+    const hpRatio = enemy.hp / enemy.maxHp;
+    const rand = Math.random();
+
+    // Check if being attacked from both sides (sandwiched)
+    const sandwiched = hasBatman &&
+      ((player.x < enemy.x && batman.x > enemy.x) ||
+       (player.x > enemy.x && batman.x < enemy.x));
+
+    if (sandwiched && rand < 0.3) {
+      // Try to escape sandwich
+      aiAction = 'jump';
+      return;
+    }
+
+    const targetAttacking = (distPlayer < distBatman)
+      ? (player.state === 'punch' || player.state === 'push')
+      : (hasBatman && (batman.state === 'punch' || batman.state === 'push'));
+
+    if (closestDist < PUNCH_RANGE + 30) {
+      if (targetAttacking) {
+        if (rand < 0.35) aiAction = 'block';
+        else if (rand < 0.5) aiAction = 'kneel';
+        else if (rand < 0.7) aiAction = 'jump';
+        else aiAction = 'retreat';
+      } else {
+        if (rand < 0.3) aiAction = 'punch';
+        else if (rand < 0.5) aiAction = 'push';
+        else if (rand < 0.65) aiAction = 'block';
+        else if (rand < 0.75 && !hasBatman && hpRatio > 0.6) aiAction = 'scary';
+        else aiAction = 'retreat';
+      }
+    } else if (closestDist < 200) {
+      if (rand < 0.35) aiAction = 'approach';
+      else if (rand < 0.55) aiAction = 'rush';
+      else if (rand < 0.7) aiAction = 'jump';
+      else if (rand < 0.8 && !hasBatman && hpRatio > 0.7) aiAction = 'scary';
+      else aiAction = hasBatman ? 'block' : 'idle';
+    } else {
+      if (rand < 0.45) aiAction = 'rush';
+      else if (rand < 0.65) aiAction = 'approach';
+      else if (rand < 0.8) aiAction = 'jump';
+      else aiAction = 'idle';
+    }
+
+    // Desperate at low HP
+    if (hpRatio < 0.25 && closestDist < 150 && rand < 0.5) {
+      aiAction = rand < 0.3 ? 'push' : 'punch';
+    }
+
+    // More blocking when outnumbered
+    if (hasBatman && closestDist < 120 && rand < 0.25) {
+      aiAction = 'block';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // ANIMATION HELPER
+  // ════════════════════════════════════════════════════════════
+  function updateAnimGeneric(fighter, defs, dt) {
+    const def = defs[fighter.state];
+    if (!def || def.frames <= 1) { fighter.animFrame = 0; return; }
+    fighter.animTimer += dt;
+    const fd = 1 / ANIM_FPS;
+    if (fighter.animTimer >= fd) {
+      fighter.animTimer -= fd;
+      fighter.animFrame = (fighter.animFrame + 1) % def.frames;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // PARTICLES
+  // ════════════════════════════════════════════════════════════
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 500 * dt;
+      p.life -= dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // PUSH APART HELPER
+  // ════════════════════════════════════════════════════════════
+  function pushApart(a, b) {
+    if (!a || !b) return;
+    if (a.x < b.x) {
+      const overlap = (a.x + a.w) - b.x;
+      if (overlap > 0) {
+        a.x -= overlap / 2;
+        b.x += overlap / 2;
+      }
+    } else {
+      const overlap = (b.x + b.w) - a.x;
+      if (overlap > 0) {
+        b.x -= overlap / 2;
+        a.x += overlap / 2;
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // MAIN UPDATE
+  // ════════════════════════════════════════════════════════════
+  function update(dt) {
+    gameTime += dt;
+    if (shakeTimer > 0) shakeTimer -= dt;
+    if (comboTextTimer > 0) comboTextTimer -= dt;
+    if (batmanCallTimer > 0) batmanCallTimer -= dt;
+
+    // Clear just-pressed keys at end of frame
+    // (we clear them after processing)
+
+    if (keys['KeyR']) { resetMatch(); clearJustPressed(); return; }
+
+    if (gameOver) { clearJustPressed(); return; }
+
+    if (roundPause > 0) {
+      roundPause -= dt;
+      clearJustPressed();
+      return;
+    }
+
+    updatePlayer(dt);
+    updateEnemy(dt);
+    updateBatman(dt);
+    updateParticles(dt);
+
+    // Push fighters apart
+    pushApart(player, enemy);
+    if (batman && batman.active && !batmanEntering) {
+      pushApart(batman, enemy);
+      pushApart(player, batman);
+    }
+
+    // Enemy attacks batman too (if batman is close and enemy tries to attack)
+    if (batman && batman.active && !batmanEntering) {
+      // Enemy can hurt batman on collision during attack
+      if ((enemy.state === 'punch' || enemy.state === 'push') && enemy.punchTimer > PUNCH_TIME * 0.5) {
+        // Already handled by tryAttack targeting
+      }
+    }
+
+    // Check round end
+    if (player.hp <= 0 && (!batman || !batman.active)) {
+      // Player side loses (both player and batman down)
+      enemyRounds++;
+      spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#ff0000', 20);
+      shakeTimer = 0.4; shakeIntensity = 12;
+      if (enemyRounds >= ROUND_WIN_SCORE) {
+        gameOver = true;
+        winner = 'Dark Knight';
+      } else {
+        roundPause = ROUND_PAUSE;
+        setTimeout(() => resetRound(), ROUND_PAUSE * 1000);
+      }
+    } else if (enemy.hp <= 0) {
+      playerRounds++;
+      spawnParticles(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, '#00ff00', 20);
+      shakeTimer = 0.4; shakeIntensity = 12;
+      if (playerRounds >= ROUND_WIN_SCORE) {
+        gameOver = true;
+        winner = 'Heroes';
+      } else {
+        roundPause = ROUND_PAUSE;
+        setTimeout(() => resetRound(), ROUND_PAUSE * 1000);
+      }
+    }
+
+    clearJustPressed();
+  }
+
+  function clearJustPressed() {
+    for (const k in keysJustPressed) delete keysJustPressed[k];
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // DRAW
+  // ════════════════════════════════════════════════════════════
+  function draw() {
+    const W = canvas.width;
+    const H = canvas.height;
+    const groundY = H * GROUND_Y_RATIO;
+
+    ctx.save();
+
+    // Screen shake
+    if (shakeTimer > 0) {
+      const sx = (Math.random() - 0.5) * shakeIntensity * 2;
+      const sy = (Math.random() - 0.5) * shakeIntensity * 2;
+      ctx.translate(sx, sy);
+    }
+
+    // ── Background: Arena ──
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0, '#0d1b2a');
+    skyGrad.addColorStop(0.4, '#1b4965');
+    skyGrad.addColorStop(0.7, '#3a7ca5');
+    skyGrad.addColorStop(1, '#62b6cb');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // City skyline
+    ctx.fillStyle = 'rgba(15,25,45,0.8)';
+    const buildings = [
+      { x: 0.05, w: 0.08, h: 0.3 }, { x: 0.12, w: 0.06, h: 0.4 },
+      { x: 0.17, w: 0.1, h: 0.25 }, { x: 0.28, w: 0.05, h: 0.45 },
+      { x: 0.32, w: 0.08, h: 0.35 }, { x: 0.42, w: 0.07, h: 0.5 },
+      { x: 0.48, w: 0.1, h: 0.3 }, { x: 0.6, w: 0.06, h: 0.42 },
+      { x: 0.65, w: 0.09, h: 0.28 }, { x: 0.75, w: 0.05, h: 0.48 },
+      { x: 0.8, w: 0.08, h: 0.32 }, { x: 0.88, w: 0.07, h: 0.38 },
+      { x: 0.94, w: 0.06, h: 0.25 },
+    ];
+    for (const b of buildings) {
+      const bx = b.x * W;
+      const bw = b.w * W;
+      const bh = b.h * groundY;
+      ctx.fillRect(bx, groundY - bh, bw, bh);
+      ctx.fillStyle = 'rgba(255,220,100,0.15)';
+      for (let wy = groundY - bh + 8; wy < groundY - 10; wy += 15) {
+        for (let wx = bx + 4; wx < bx + bw - 4; wx += 10) {
+          if (Math.random() > 0.3) ctx.fillRect(wx, wy, 5, 8);
+        }
+      }
+      ctx.fillStyle = 'rgba(15,25,45,0.8)';
+    }
+
+    // Ground
+    const groundGrad = ctx.createLinearGradient(0, groundY, 0, H);
+    groundGrad.addColorStop(0, '#3a3a3a');
+    groundGrad.addColorStop(0.1, '#2a2a2a');
+    groundGrad.addColorStop(1, '#1a1a1a');
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, groundY, W, H - groundY);
+
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(W, groundY);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(W / 2, groundY + 5);
+    ctx.lineTo(W / 2, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ── Draw fighters (sorted by Y for depth) ──
+    const fighters = [
+      { f: player, s: playerSprites, d: playerSpriteDefs },
+      { f: enemy, s: enemySprites, d: enemySpriteDefs },
+    ];
+    if (batman && (batman.active || batmanEntering)) {
+      fighters.push({ f: batman, s: batmanSprites, d: batmanSpriteDefs });
+    }
+    // Sort by y position (painters algorithm)
+    fighters.sort((a, b) => a.f.y - b.f.y);
+    for (const { f, s, d } of fighters) {
+      drawFighter(f, s, d);
+    }
+
+    // ── Particles ──
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life * 3);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.restore(); // end screen shake
+
+    // ══ HUD ══
+    drawHUD();
+
+    // ── Round pause text ──
+    if (roundPause > 0 && !gameOver) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(48, W * 0.08)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if (roundPause > 1) {
+        ctx.fillText('ROUND ' + (playerRounds + enemyRounds + 1), W / 2, H * 0.4);
+        ctx.font = `bold ${Math.min(32, W * 0.05)}px "Segoe UI", sans-serif`;
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText('FIGHT!', W / 2, H * 0.55);
+      } else {
+        ctx.fillText('FIGHT!', W / 2, H / 2);
+      }
+      ctx.restore();
+    }
+
+    // ── Combo text ──
+    if (comboTextTimer > 0 && comboText) {
+      ctx.save();
+      ctx.font = `bold ${Math.min(36, W * 0.06)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#FFD700';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      const cy = H * 0.25;
+      ctx.strokeText(comboText, W / 2, cy);
+      ctx.fillText(comboText, W / 2, cy);
+      ctx.restore();
+    }
+
+    // ── Batman call text ──
+    if (batmanCallTimer > 0 && batmanCallText) {
+      ctx.save();
+      const alpha = Math.min(1, batmanCallTimer * 2);
+      ctx.globalAlpha = alpha;
+      ctx.font = `bold ${Math.min(34, W * 0.055)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#6688ff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      const cy = H * 0.18;
+      ctx.strokeText(batmanCallText, W / 2, cy);
+      ctx.fillText(batmanCallText, W / 2, cy);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Batman hint ──
+    if (!batmanSummoned && !batmanUsedThisRound && !gameOver && roundPause <= 0) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(100,130,255,0.5)';
+      ctx.font = `bold ${Math.min(14, W * 0.025)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      const pulse = 0.5 + Math.sin(gameTime * 3) * 0.3;
+      ctx.globalAlpha = pulse;
+      ctx.fillText('Press ENTER to call Batman!', W / 2, H * 0.12);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Game Over ──
+    if (gameOver) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = winner === 'Heroes' ? '#44aaff' : '#ff4444';
+      ctx.font = `bold ${Math.min(52, W * 0.08)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(winner === 'Heroes' ? 'HEROES WIN!' : 'DARK KNIGHT WINS!', W / 2, H * 0.4);
+      ctx.fillStyle = '#fff';
+      ctx.font = `${Math.min(24, W * 0.04)}px "Segoe UI", sans-serif`;
+      ctx.fillText('Press R to play again', W / 2, H * 0.55);
+      ctx.restore();
+    }
+  }
+
+  function drawFighter(fighter, spriteSet, defs) {
+    if (!fighter || !fighter.active && !batmanEntering) return;
+    const st = fighter.state;
+    const spriteArr = spriteSet[st] || spriteSet['stand'];
+    if (!spriteArr || spriteArr.length === 0) return;
+
+    const frameIdx = Math.min(fighter.animFrame, spriteArr.length - 1);
+    const img = spriteArr[frameIdx];
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+
+    const drawW = img.naturalWidth * fighter.spriteScale;
+    const drawH = img.naturalHeight * fighter.spriteScale;
+
+    if (fighter.hurtTimer > 0 && Math.floor(fighter.hurtTimer * 15) % 2 === 0) return;
+
+    ctx.save();
+    const offX = (drawW - fighter.w) / 2;
+    const offY = drawH - fighter.h;
+
+    if (!fighter.facingRight) {
+      ctx.translate(fighter.x + fighter.w / 2, fighter.y - offY);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, -drawW / 2, 0, drawW, drawH);
+    } else {
+      ctx.drawImage(img, fighter.x - offX, fighter.y - offY, drawW, drawH);
+    }
+    ctx.restore();
+  }
+
+  function drawHUD() {
+    const W = canvas.width;
+    const barWidth = W * 0.32;
+    const barHeight = 20;
+    const barY = 10;
+    const padding = 12;
+
+    // ── Player health bar (left) ──
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(padding, barY, barWidth, barHeight);
+    const pHpRatio = Math.max(0, player.hp / player.maxHp);
+    const pGrad = ctx.createLinearGradient(padding, 0, padding + barWidth, 0);
+    pGrad.addColorStop(0, pHpRatio > 0.3 ? '#22cc44' : '#ff4444');
+    pGrad.addColorStop(1, pHpRatio > 0.3 ? '#44ff66' : '#ff6666');
+    ctx.fillStyle = pGrad;
+    ctx.fillRect(padding + 2, barY + 2, (barWidth - 4) * pHpRatio, barHeight - 4);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(padding, barY, barWidth, barHeight);
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(12, W * 0.02)}px "Segoe UI", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('G-AMERICA', padding + 4, barY + barHeight + 3);
+
+    // Round indicators
+    for (let i = 0; i < ROUND_WIN_SCORE; i++) {
+      ctx.fillStyle = i < playerRounds ? '#FFD700' : 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(padding + 10 + i * 18, barY + barHeight + 20, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Batman health bar (below player's, if active) ──
+    if (batman && (batman.active || batmanEntering)) {
+      const batBarY = barY + barHeight + 32;
+      const batBarWidth = barWidth * 0.7;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(padding, batBarY, batBarWidth, 14);
+      const bHpRatio = Math.max(0, batman.hp / batman.maxHp);
+      const bGrad = ctx.createLinearGradient(padding, 0, padding + batBarWidth, 0);
+      bGrad.addColorStop(0, '#4466cc');
+      bGrad.addColorStop(1, '#6688ff');
+      ctx.fillStyle = bGrad;
+      ctx.fillRect(padding + 1, batBarY + 1, (batBarWidth - 2) * bHpRatio, 12);
+      ctx.strokeStyle = '#88aaff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(padding, batBarY, batBarWidth, 14);
+      ctx.fillStyle = '#88aaff';
+      ctx.font = `bold ${Math.min(10, W * 0.017)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('BATMAN', padding + 3, batBarY + 16);
+    }
+
+    // ── Enemy health bar (right) ──
+    const eBarX = W - padding - barWidth;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(eBarX, barY, barWidth, barHeight);
+    const eHpRatio = Math.max(0, enemy.hp / enemy.maxHp);
+    const eGrad = ctx.createLinearGradient(eBarX, 0, eBarX + barWidth, 0);
+    eGrad.addColorStop(0, eHpRatio > 0.3 ? '#ff6666' : '#ff6666');
+    eGrad.addColorStop(1, eHpRatio > 0.3 ? '#cc2222' : '#ff4444');
+    ctx.fillStyle = eGrad;
+    const eFillW = (barWidth - 4) * eHpRatio;
+    ctx.fillRect(eBarX + barWidth - 2 - eFillW, barY + 2, eFillW, barHeight - 4);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(eBarX, barY, barWidth, barHeight);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'right';
+    ctx.font = `bold ${Math.min(12, W * 0.02)}px "Segoe UI", sans-serif`;
+    ctx.fillText('DARK KNIGHT', W - padding - 4, barY + barHeight + 3);
+
+    for (let i = 0; i < ROUND_WIN_SCORE; i++) {
+      ctx.fillStyle = i < enemyRounds ? '#ff4444' : 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(W - padding - 10 - i * 18, barY + barHeight + 20, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── VS ──
+    ctx.fillStyle = '#FFD700';
+    ctx.font = `bold ${Math.min(18, W * 0.03)}px "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('VS', W / 2, barY + 1);
+
+    // ── Controls hint ──
+    if (!gameOver && roundPause <= 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.font = `${Math.min(11, W * 0.018)}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('← → Move | ↑ Jump | ↓ Kneel | SPACE Punch | X Push | Z Block | SHIFT Run | ENTER Batman | R Restart', W / 2, canvas.height - 5);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // GAME LOOP
+  // ════════════════════════════════════════════════════════════
+  let lastTime = 0;
+
+  function loop(ts) {
+    const dt = Math.min((ts - lastTime) / 1000, 0.05);
+    lastTime = ts;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // INIT
+  // ════════════════════════════════════════════════════════════
+  ctx.fillStyle = '#fff';
+  ctx.font = '24px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Loading G-America vs Dark Knight...', canvas.width / 2, canvas.height / 2);
+
+  function onSpritesLoaded() {
+    // Set player dims
+    const s = playerSprites.stand[0];
+    if (s && s.naturalWidth) {
+      player.w = s.naturalWidth * SPRITE_SCALE_PLAYER * 0.5;
+      player.h = s.naturalHeight * SPRITE_SCALE_PLAYER * 0.85;
+    }
+    // Set enemy dims
+    const es = enemySprites.stand[0];
+    if (es && es.naturalWidth) {
+      enemy.w = es.naturalWidth * SPRITE_SCALE_ENEMY * 0.5;
+      enemy.h = es.naturalHeight * SPRITE_SCALE_ENEMY * 0.85;
+    }
+
+    resetMatch();
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  player = createFighter(100, true, SPRITE_SCALE_PLAYER, MAX_HP);
+  enemy = createFighter(300, false, SPRITE_SCALE_ENEMY, ENEMY_MAX_HP_SOLO);
+
+  loadSpriteSet(playerSpriteDefs, playerSprites, () => {});
+  loadSpriteSet(enemySpriteDefs, enemySprites, () => {});
+  loadSpriteSet(batmanSpriteDefs, batmanSprites, () => {});
+
+  const checkLoaded = setInterval(() => {
+    if (loadCount >= loadTotal) {
+      clearInterval(checkLoaded);
+      onSpritesLoaded();
+    }
+  }, 50);
+
+})();
+</script>
+</body>
+</html>

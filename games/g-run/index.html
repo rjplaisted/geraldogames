@@ -129,10 +129,16 @@
     // ===== SPEECH SYSTEM =====
     let speechVoice = null;
     let speechReady = false;
+    let speechUnlocked = false; // DEBUG: track if speech was unlocked via user gesture
 
     function initSpeechVoice() {
       const voices = window.speechSynthesis.getVoices();
-      if (voices.length === 0) return;
+      console.log('[SPEECH DEBUG] initSpeechVoice called, voices.length=' + voices.length);
+      if (voices.length === 0) {
+        console.log('[SPEECH DEBUG] No voices available yet');
+        return;
+      }
+      console.log('[SPEECH DEBUG] Available voices:', voices.map(v => v.name + ' (' + v.lang + ')').join(', '));
       // Prefer natural/realistic voices
       const preferred = [
         'Google US English', 'Google UK English Female', 'Google UK English Male',
@@ -149,16 +155,56 @@
         speechVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
       }
       speechReady = true;
+      console.log('[SPEECH DEBUG] speechReady=true, selected voice:', speechVoice ? speechVoice.name : 'none');
     }
 
     // Voices load async in some browsers
     if (window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = initSpeechVoice;
+      console.log('[SPEECH DEBUG] speechSynthesis exists');
+      window.speechSynthesis.onvoiceschanged = () => {
+        console.log('[SPEECH DEBUG] onvoiceschanged fired');
+        initSpeechVoice();
+      };
       initSpeechVoice();
+      // iOS workaround: retry voice loading after a delay
+      setTimeout(() => {
+        if (!speechReady) {
+          console.log('[SPEECH DEBUG] Retrying initSpeechVoice after 500ms delay');
+          initSpeechVoice();
+        }
+      }, 500);
+      setTimeout(() => {
+        if (!speechReady) {
+          console.log('[SPEECH DEBUG] Retrying initSpeechVoice after 2s delay');
+          initSpeechVoice();
+        }
+      }, 2000);
+    } else {
+      console.log('[SPEECH DEBUG] speechSynthesis NOT available');
     }
 
+    // DEBUG: Unlock speech on first user gesture (iOS requirement)
+    function unlockSpeech() {
+      if (speechUnlocked) return;
+      speechUnlocked = true;
+      console.log('[SPEECH DEBUG] Attempting to unlock speech via user gesture, speechReady=' + speechReady);
+      if (window.speechSynthesis) {
+        // Speak a silent/empty utterance to unlock on iOS
+        const unlockUtter = new SpeechSynthesisUtterance('');
+        unlockUtter.volume = 0;
+        window.speechSynthesis.speak(unlockUtter);
+        console.log('[SPEECH DEBUG] Sent silent unlock utterance');
+      }
+    }
+    document.addEventListener('touchstart', unlockSpeech, { once: true });
+    document.addEventListener('click', unlockSpeech, { once: true });
+
     function speakText(text) {
-      if (!window.speechSynthesis || !speechReady) return;
+      console.log('[SPEECH DEBUG] speakText called: "' + text + '", speechReady=' + speechReady + ', speechUnlocked=' + speechUnlocked);
+      if (!window.speechSynthesis || !speechReady) {
+        console.log('[SPEECH DEBUG] SKIPPED speech - synthesis=' + !!window.speechSynthesis + ', ready=' + speechReady);
+        return;
+      }
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
@@ -166,7 +212,11 @@
       utter.rate = 1.05;
       utter.pitch = 1.1;
       utter.volume = 0.9;
+      utter.onstart = () => console.log('[SPEECH DEBUG] Utterance STARTED: "' + text + '"');
+      utter.onend = () => console.log('[SPEECH DEBUG] Utterance ENDED: "' + text + '"');
+      utter.onerror = (e) => console.log('[SPEECH DEBUG] Utterance ERROR: ' + e.error + ' for "' + text + '"');
       window.speechSynthesis.speak(utter);
+      console.log('[SPEECH DEBUG] speak() called for: "' + text + '"');
     }
 
     // Speak with Geraldo's name - uses phonetic "Heraldo" for closer Spanish pronunciation
